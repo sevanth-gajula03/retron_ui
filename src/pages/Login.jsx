@@ -4,6 +4,7 @@ import { Eye, EyeOff, Loader2, X } from "lucide-react";
 import { getUserHomeRoute } from "../lib/rbac";
 import logo from "../assets/retron-logo-full.jpg";
 import { apiClient, setTokens } from "../lib/apiClient";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function Login() {
     const [email, setEmail] = useState("");
@@ -19,6 +20,7 @@ export default function Login() {
     const [resetMessage, setResetMessage] = useState("");
     const [resetError, setResetError] = useState("");
 
+    const { refreshUser } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const successMessage = location.state?.message;
@@ -37,7 +39,7 @@ export default function Login() {
         try {
             const tokens = await apiClient.post("/auth/login", { email, password });
             setTokens({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token });
-            const userData = await apiClient.get("/auth/me");
+            const userData = await refreshUser();
             const homeRoute = getUserHomeRoute(userData);
             navigate(homeRoute, { replace: true });
         } catch (err) {
