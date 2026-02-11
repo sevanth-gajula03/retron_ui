@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import * as mammoth from "mammoth/mammoth.browser";
 import { useEditor, EditorContent } from "@tiptap/react";
 import { StarterKit } from '@tiptap/starter-kit'
 import { Image } from '@tiptap/extension-image'
@@ -20,7 +21,7 @@ import {
     Bold, Italic, Underline as UnderlineIcon, AlignLeft, AlignCenter,
     AlignRight, AlignJustify, List, ListOrdered, Link as LinkIcon,
     MinusSquare, Undo2, Redo2, Trash2, Palette, Heading1, Heading2,
-    Heading3, Plus, Minus, Columns, Rows, Merge, Split, Upload,
+    Heading3, Plus, Minus, Columns, Rows, Merge, Split, Upload, FileText,
     ArrowLeft, ArrowRight, Save, X, ExternalLink, WrapText,
     Maximize, Minimize, Move, Type as TypeIcon, ZoomIn, ZoomOut,
     RotateCw, Download, Copy, Crop, Settings, Loader2
@@ -419,6 +420,7 @@ export default function RichTextEditor({
     const [showImageSettings, setShowImageSettings] = useState(false);
     const [currentLink, setCurrentLink] = useState({ url: "", text: "" });
     const [imageUploading, setImageUploading] = useState(false);
+    const [docxImporting, setDocxImporting] = useState(false);
     const [imageData, setImageData] = useState({
         url: "",
         alt: "",
@@ -433,6 +435,7 @@ export default function RichTextEditor({
     const [uploadedImages, setUploadedImages] = useState({}); // Store Cloudinary URLs
     const [tempImageUrl, setTempImageUrl] = useState(null); // Store temp blob URLs
     const fileInputRef = useRef(null);
+    const docxInputRef = useRef(null);
     const { toast } = useToast();
 
     const editor = useEditor({
@@ -817,6 +820,69 @@ export default function RichTextEditor({
                     setTempImageUrl(null);
                 }
             }, 1000);
+        }
+    };
+
+    const handleDocxImport = async (file) => {
+        if (!file || !editor) return;
+
+        const isDocx = file.name.toLowerCase().endsWith(".docx");
+        if (!isDocx) {
+            toast({
+                title: "Unsupported file",
+                description: "Please upload a .docx Word document",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        setDocxImporting(true);
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const result = await mammoth.convertToHtml({ arrayBuffer });
+            const html = result?.value?.trim();
+
+            if (!html) {
+                toast({
+                    title: "No content found",
+                    description: "The document appears to be empty",
+                    variant: "destructive",
+                });
+                return;
+            }
+
+            const hasContent = typeof editor.isEmpty === "boolean"
+                ? !editor.isEmpty
+                : editor.getText().trim().length > 0;
+            if (hasContent) {
+                const confirmReplace = window.confirm(
+                    "Replace current content with the imported document?"
+                );
+                if (!confirmReplace) return;
+            }
+
+            editor.chain().focus().setContent(html).run();
+
+            const warningCount = result?.messages?.length || 0;
+            toast({
+                title: "Document imported",
+                description: warningCount > 0
+                    ? `${warningCount} formatting warning${warningCount > 1 ? "s" : ""} while importing.`
+                    : "Content added to the editor.",
+                variant: "default",
+            });
+        } catch (error) {
+            console.error("Error importing .docx file:", error);
+            toast({
+                title: "Import failed",
+                description: "Could not read the Word document",
+                variant: "destructive",
+            });
+        } finally {
+            setDocxImporting(false);
+            if (docxInputRef.current) {
+                docxInputRef.current.value = "";
+            }
         }
     };
 
@@ -1379,6 +1445,13 @@ export default function RichTextEditor({
 
     return (
         <>
+            <input
+                ref={docxInputRef}
+                type="file"
+                accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                className="hidden"
+                onChange={(e) => handleDocxImport(e.target.files?.[0])}
+            />
             <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -1413,6 +1486,8 @@ export default function RichTextEditor({
                         onAlignImageRight={alignImageRight}
                         onResizeImage={resizeImage}
                         onResetImageSize={resetImageSize}
+                        onImportDocx={() => docxInputRef.current?.click()}
+                        docxImporting={docxImporting}
                     />
 
                     <div className="flex-1 overflow-auto border-t border-gray-200 bg-white">
@@ -1506,7 +1581,9 @@ function Toolbar({
     onAlignImageLeft,
     onAlignImageRight,
     onResizeImage,
-    onResetImageSize
+    onResetImageSize,
+    onImportDocx,
+    docxImporting
 }) {
     return (
         <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
@@ -1802,6 +1879,21 @@ function Toolbar({
                     className="hover:bg-gray-200"
                 >
                     <ImageIcon size={16} />
+                </Button>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={onImportDocx}
+                    disabled={docxImporting}
+                    title="Import .docx"
+                    className="hover:bg-gray-200"
+                >
+                    {docxImporting ? (
+                        <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                        <FileText size={16} />
+                    )}
                 </Button>
                 <Button
                     type="button"
