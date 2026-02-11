@@ -12,6 +12,11 @@ export const ROLES = {
     ADMIN: 'admin'
 };
 
+export const normalizeRole = (role) => {
+    if (!role || typeof role !== 'string') return role;
+    return role.trim().toLowerCase().replace(/\s+/g, '_');
+};
+
 // Permission Constants
 export const PERMISSIONS = {
     // Student Permissions
@@ -263,7 +268,8 @@ export const canAccessRoute = (userData, route) => {
  * @returns {string} Home route path
  */
 export const getUserHomeRoute = (userData) => {
-    if (!userData || !userData.role) return '/login';
+    const role = normalizeRole(userData?.role);
+    if (!role) return '/login';
 
     const homeRoutes = {
         [ROLES.ADMIN]: '/admin/analytics',
@@ -273,7 +279,7 @@ export const getUserHomeRoute = (userData) => {
         [ROLES.STUDENT]: '/courses'
     };
 
-    return homeRoutes[userData.role] || '/student/dashboard';
+    return homeRoutes[role] || '/student/dashboard';
 };
 
 /**

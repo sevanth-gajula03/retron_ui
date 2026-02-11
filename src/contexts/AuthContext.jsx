@@ -5,6 +5,25 @@ import { hasPermission as checkPermission, canAccessRoute, isGuestAccessExpired 
 
 const AuthContext = createContext({});
 
+const normalizeRole = (role) => {
+    if (!role || typeof role !== "string") return role;
+    return role.trim().toLowerCase().replace(/\s+/g, "_");
+};
+
+const normalizeStatus = (status) => {
+    if (!status || typeof status !== "string") return status;
+    return status.trim().toLowerCase();
+};
+
+const normalizeUserData = (data) => {
+    if (!data) return data;
+    return {
+        ...data,
+        role: normalizeRole(data.role),
+        status: normalizeStatus(data.status)
+    };
+};
+
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
@@ -13,15 +32,26 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const [guestExpired, setGuestExpired] = useState(false);
 
+    const applyUserData = (data) => {
+        const normalizedData = normalizeUserData(data);
+        setUser({ id: normalizedData.id, email: normalizedData.email });
+        setUserData(normalizedData);
+        setGuestExpired(normalizedData.role === "guest" && isGuestAccessExpired(normalizedData));
+        return normalizedData;
+    };
+
+    const refreshUser = async () => {
+        const data = await apiClient.get("/auth/me");
+        return applyUserData(data);
+    };
+
     useEffect(() => {
         let mounted = true;
         const loadCurrentUser = async () => {
             try {
                 const data = await apiClient.get("/auth/me");
                 if (!mounted) return;
-                setUser({ id: data.id, email: data.email });
-                setUserData(data);
-                setGuestExpired(data.role === "guest" && isGuestAccessExpired(data));
+                applyUserData(data);
             } catch (error) {
                 clearTokens();
                 setUser(null);
@@ -63,6 +93,7 @@ export const AuthProvider = ({ children }) => {
         loading,
         guestExpired,
         signOut,
+        refreshUser,
         hasRole: (role) => userData?.role === role,
         hasPermission,
         canAccess,

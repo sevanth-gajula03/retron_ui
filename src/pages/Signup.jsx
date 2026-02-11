@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { apiClient, setTokens } from "../lib/apiClient";
+import { useAuth } from "../contexts/AuthContext";
+import { getUserHomeRoute } from "../lib/rbac";
 
 export default function Signup() {
     const [fullName, setFullName] = useState("");
@@ -11,6 +13,7 @@ export default function Signup() {
     const [error, setError] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const navigate = useNavigate();
+    const { refreshUser } = useAuth();
 
     // Role is always 'student' for public signup
     const role = "student";
@@ -34,7 +37,9 @@ export default function Signup() {
                 role
             });
             setTokens({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token });
-            navigate("/");
+            const userData = await refreshUser();
+            const homeRoute = getUserHomeRoute(userData);
+            navigate(homeRoute, { replace: true });
         } catch (err) {
             setError("Failed to create account. " + err.message);
             console.error(err);

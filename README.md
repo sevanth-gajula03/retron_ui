@@ -37,6 +37,24 @@ A modern, feature-rich Learning Management System (LMS) built with React, Fireba
 *   **Storage**: [Firebase Storage](https://firebase.google.com/docs/storage) & Cloudinary (for optimized image delivery)
 *   **Utilities**: `jspdf` (PDF generation), `xlsx` (Excel export)
 
+## ☁️ Cloud Run Deployment
+
+This project ships with a production Dockerfile for Google Cloud Run. The build produces static assets and serves them with Nginx on port 8080.
+
+1.  **Set build-time env**
+    Vite reads environment variables at build time. Provide your `VITE_` values via a `.env.production` file (recommended) or through your build system.
+
+2.  **Build and deploy**
+    ```bash
+    gcloud run deploy lms-platform \
+      --source . \
+      --region us-central1 \
+      --allow-unauthenticated
+    ```
+
+3.  **Open the service URL**
+    After deploy, Cloud Run will print the HTTPS URL for your service.
+
 ## 📦 Installation
 
 1.  **Clone the repository**
@@ -101,5 +119,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 4.  Push to the branch (`git push origin feature/AmazingFeature`)
 5.  Open a Pull Request
-
 
