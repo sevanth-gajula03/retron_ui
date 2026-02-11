@@ -41,18 +41,26 @@ A modern, feature-rich Learning Management System (LMS) built with React, Fireba
 
 This project ships with a production Dockerfile for Google Cloud Run. The build produces static assets and serves them with Nginx on port 8080.
 
-1.  **Set build-time env**
-    Vite reads environment variables at build time. Provide your `VITE_` values via a `.env.production` file (recommended) or through your build system.
+1.  **Set project and enable APIs**
+    ```bash
+    gcloud auth login
+    gcloud config set project YOUR_PROJECT_ID
+    gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com
+    ```
 
-2.  **Build and deploy**
+2.  **Provide build-time env vars**
+    Vite reads `VITE_` values at build time. Option A: create a `.env.production` file in the repo (included in the Docker build context). Option B: pass build envs with the deploy command.
+
+3.  **Build and deploy**
     ```bash
     gcloud run deploy lms-platform \
       --source . \
       --region us-central1 \
-      --allow-unauthenticated
+      --allow-unauthenticated \
+      --set-build-env-vars VITE_API_BASE_URL=https://retron-api-1061930308384.asia-south1.run.app/,VITE_GUEST_ACCESS_DURATION_HOURS=48
     ```
 
-3.  **Open the service URL**
+4.  **Open the service URL**
     After deploy, Cloud Run will print the HTTPS URL for your service.
 
 ## 📦 Installation
@@ -119,4 +127,3 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 4.  Push to the branch (`git push origin feature/AmazingFeature`)
 5.  Open a Pull Request
-
