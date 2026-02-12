@@ -1,5 +1,5 @@
-import { useState, useContext, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useContext, useCallback, useEffect } from "react";
+import { motion as Motion, AnimatePresence } from "framer-motion";
 import { Button } from "../../../../components/ui/button";
 import { Card, CardContent } from "../../../../components/ui/card";
 import {
@@ -11,6 +11,7 @@ import ModuleList from "./ModuleList";
 import AddModuleButtons from "./AddModuleButtons";
 import { ModalContext } from "../../../../contexts/ModalContext";
 import { useToast } from "../../../../contexts/ToastComponent";
+import { updateSubSection } from "../../../../services/sectionService";
 
 // Default fallback functions to prevent crashes
 const defaultModalFunctions = {
@@ -40,6 +41,8 @@ export default function SubSectionList({
     const [expandedSubSections, setExpandedSubSections] = useState({});
     const [draggingSubSection, setDraggingSubSection] = useState(null);
     const [dragOverSubSection, setDragOverSubSection] = useState(null);
+    const [dropPosition, setDropPosition] = useState(null);
+    const [orderedSubSections, setOrderedSubSections] = useState([]);
 
     // Get modal functions from context, use defaults if not available
     const modalContext = useContext(ModalContext);
@@ -47,8 +50,32 @@ export default function SubSectionList({
         showFormModal,
         showConfirmModal
     } = modalContext || defaultModalFunctions;
+    const hasModalContext = Boolean(modalContext);
 
     const { toast } = useToast();
+
+    const sortSubSectionsByOrder = useCallback((list) => {
+        const items = Array.isArray(list) ? list : [];
+        return items
+            .map((subSection, index) => {
+                const parsedOrder = Number(
+                    subSection?.order
+                    ?? subSection?.sort_order
+                    ?? subSection?.display_order
+                );
+                return {
+                    subSection,
+                    index,
+                    order: Number.isFinite(parsedOrder) ? parsedOrder : index + 1
+                };
+            })
+            .sort((a, b) => (a.order - b.order) || (a.index - b.index))
+            .map((item) => item.subSection);
+    }, []);
+
+    useEffect(() => {
+        setOrderedSubSections(sortSubSectionsByOrder(subSections || []));
+    }, [subSections, sortSubSectionsByOrder]);
 
     const toggleSubSection = useCallback((subSectionId) => {
         setExpandedSubSections(prev => ({
@@ -281,26 +308,74 @@ export default function SubSectionList({
     }, [showFormModal, onDuplicateSubSection, toast]);
 
     const handleDragStart = useCallback((e, subSectionId) => {
-        setDraggingSubSection(subSectionId);
-        e.dataTransfer.setData('text/plain', subSectionId);
+        const id = String(subSectionId);
+        setDraggingSubSection(id);
+        e.dataTransfer.setData('application/x-dnd-type', 'subsection');
+        e.dataTransfer.setData('text/plain', id);
         e.dataTransfer.effectAllowed = 'move';
     }, []);
 
     const handleDragOver = useCallback((e, subSectionId) => {
         e.preventDefault();
-        setDragOverSubSection(subSectionId);
+        const dragType = e.dataTransfer.getData('application/x-dnd-type');
+        if (dragType && dragType !== 'subsection') return;
+        const id = String(subSectionId);
+        setDragOverSubSection(id);
+        const rect = e.currentTarget.getBoundingClientRect();
+        const offsetY = e.clientY - rect.top;
+        const position = offsetY < rect.height / 2 ? 'before' : 'after';
+        setDropPosition({ subSectionId: id, position });
     }, []);
 
     const handleDragLeave = useCallback(() => {
         setDragOverSubSection(null);
+        setDropPosition(null);
     }, []);
+
+    const handleDragEnd = useCallback(() => {
+        setDragOverSubSection(null);
+        setDraggingSubSection(null);
+        setDropPosition(null);
+    }, []);
+
+    const persistReorderedSubSections = useCallback(async (reorderedList) => {
+        const validSubSections = (reorderedList || []).filter((subSection) => subSection?.id !== undefined && subSection?.id !== null);
+        if (!validSubSections.length) return;
+
+        const temporaryOrderBase = 1000 + validSubSections.length;
+
+        // First pass: move all items to a non-conflicting range to avoid unique-order collisions.
+        for (let index = 0; index < validSubSections.length; index += 1) {
+            const subSection = validSubSections[index];
+            await updateSubSection(courseId, sectionId, subSection.id, {
+                order: temporaryOrderBase + index
+            });
+        }
+
+        // Second pass: assign final contiguous order values.
+        for (let index = 0; index < validSubSections.length; index += 1) {
+            const subSection = validSubSections[index];
+            await updateSubSection(courseId, sectionId, subSection.id, {
+                order: index + 1
+            });
+        }
+    }, [courseId, sectionId]);
 
     const handleDrop = useCallback(async (e, targetSubSectionId) => {
         e.preventDefault();
-        const draggedSubSectionId = e.dataTransfer.getData('text/plain');
-
-        if (draggedSubSectionId === targetSubSectionId) {
+        const dragType = e.dataTransfer.getData('application/x-dnd-type');
+        if (dragType && dragType !== 'subsection') {
             setDragOverSubSection(null);
+            setDropPosition(null);
+            return;
+        }
+        const draggedSubSectionId = e.dataTransfer.getData('text/plain') || String(draggingSubSection || "");
+        const targetId = String(targetSubSectionId);
+
+        if (draggedSubSectionId === targetId) {
+            setDragOverSubSection(null);
+            setDropPosition(null);
+            setDraggingSubSection(null);
             return;
         }
 
@@ -311,19 +386,59 @@ export default function SubSectionList({
                     description: "Drag and drop functionality is not available in this context",
                     variant: "default",
                 });
+                setDragOverSubSection(null);
+                setDraggingSubSection(null);
+                setDropPosition(null);
                 return;
             }
 
-            const confirmed = await showConfirmModal({
-                title: "Reorder Sub-Sections",
-                message: "Are you sure you want to move this sub-section?",
-                confirmText: "Move",
-                cancelText: "Cancel"
-            });
+            const confirmed = hasModalContext
+                ? await showConfirmModal({
+                    title: "Reorder Sub-Sections",
+                    message: "Are you sure you want to move this sub-section?",
+                    confirmText: "Move",
+                    cancelText: "Cancel"
+                })
+                : true;
 
             if (confirmed) {
-                // Implement reorderSubSections function
-                console.log(`Move sub-section ${draggedSubSectionId} to position of ${targetSubSectionId}`);
+                const currentList = orderedSubSections.length
+                    ? orderedSubSections
+                    : sortSubSectionsByOrder(subSections || []);
+                const draggedIndex = currentList.findIndex(sub => String(sub.id) === draggedSubSectionId);
+                const targetIndex = currentList.findIndex(sub => String(sub.id) === targetId);
+
+                if (draggedIndex === -1 || targetIndex === -1) {
+                    throw new Error("Sub-sections not found");
+                }
+
+                const reordered = [...currentList];
+                const [movedSubSection] = reordered.splice(draggedIndex, 1);
+                const isAfter = dropPosition?.subSectionId === targetId
+                    && dropPosition?.position === 'after';
+                let insertIndex = isAfter ? targetIndex + 1 : targetIndex;
+                if (draggedIndex < insertIndex) {
+                    insertIndex -= 1;
+                }
+                reordered.splice(insertIndex, 0, movedSubSection);
+
+                const previousOrder = currentList;
+                const reorderedWithOrder = reordered.map((subSection, index) => ({
+                    ...subSection,
+                    order: index + 1
+                }));
+
+                setOrderedSubSections(reorderedWithOrder);
+
+                try {
+                    await persistReorderedSubSections(reorderedWithOrder);
+                    if (onRefreshSections) {
+                        await onRefreshSections();
+                    }
+                } catch (persistError) {
+                    setOrderedSubSections(previousOrder);
+                    throw persistError;
+                }
                 toast({
                     title: "Success",
                     description: "Sub-section moved successfully",
@@ -341,11 +456,16 @@ export default function SubSectionList({
 
         setDragOverSubSection(null);
         setDraggingSubSection(null);
-    }, [showConfirmModal, toast]);
+        setDropPosition(null);
+    }, [showConfirmModal, hasModalContext, toast, orderedSubSections, sortSubSectionsByOrder, subSections, dropPosition, onRefreshSections, draggingSubSection, persistReorderedSubSections]);
 
-    if (!subSections || subSections.length === 0) {
+    const displaySubSections = orderedSubSections.length
+        ? orderedSubSections
+        : sortSubSectionsByOrder(subSections || []);
+
+    if (!displaySubSections || displaySubSections.length === 0) {
         return (
-            <motion.div
+            <Motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className={`text-center py-6 ${className}`}
@@ -367,7 +487,7 @@ export default function SubSectionList({
                         Add First Sub-section
                     </Button>
                 </div>
-            </motion.div>
+            </Motion.div>
         );
     }
 
@@ -378,10 +498,10 @@ export default function SubSectionList({
                 <div className="flex items-center gap-2">
                     <h3 className="font-semibold">Sub-sections</h3>
                     <span className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-full">
-                        {subSections.length} {subSections.length === 1 ? 'part' : 'parts'}
+                        {displaySubSections.length} {displaySubSections.length === 1 ? 'part' : 'parts'}
                     </span>
                     <span className="text-xs px-2 py-1 bg-secondary/10 text-secondary rounded-full">
-                        {subSections.reduce((sum, sub) => sum + (sub.modules?.length || 0), 0)} modules
+                        {displaySubSections.reduce((sum, sub) => sum + (sub.modules?.length || 0), 0)} modules
                     </span>
                 </div>
             </div>
@@ -390,23 +510,23 @@ export default function SubSectionList({
             <div className="grid grid-cols-4 gap-2 text-sm">
                 <div className="flex items-center gap-1 px-2 py-1 bg-blue-50 rounded">
                     <Video className="h-3 w-3 text-blue-600" />
-                    <span className="font-medium">{subSections.reduce((sum, sub) => sum + (sub.modules?.filter(m => m.type === 'video').length || 0), 0)}</span>
+                    <span className="font-medium">{displaySubSections.reduce((sum, sub) => sum + (sub.modules?.filter(m => m.type === 'video').length || 0), 0)}</span>
                     <span className="text-muted-foreground">videos</span>
                 </div>
                 <div className="flex items-center gap-1 px-2 py-1 bg-green-50 rounded">
                     <FileText className="h-3 w-3 text-green-600" />
-                    <span className="font-medium">{subSections.reduce((sum, sub) => sum + (sub.modules?.filter(m => m.type === 'text').length || 0), 0)}</span>
+                    <span className="font-medium">{displaySubSections.reduce((sum, sub) => sum + (sub.modules?.filter(m => m.type === 'text').length || 0), 0)}</span>
                     <span className="text-muted-foreground">texts</span>
                 </div>
                 <div className="flex items-center gap-1 px-2 py-1 bg-purple-50 rounded">
                     <HelpCircle className="h-3 w-3 text-purple-600" />
-                    <span className="font-medium">{subSections.reduce((sum, sub) => sum + (sub.modules?.filter(m => m.type === 'quiz').length || 0), 0)}</span>
+                    <span className="font-medium">{displaySubSections.reduce((sum, sub) => sum + (sub.modules?.filter(m => m.type === 'quiz').length || 0), 0)}</span>
                     <span className="text-muted-foreground">quizzes</span>
                 </div>
                 <div className="flex items-center gap-1 px-2 py-1 bg-amber-50 rounded">
                     <Clock className="h-3 w-3 text-amber-600" />
                     <span className="font-medium">
-                        {subSections.reduce((sum, sub) => sum + (parseDuration(sub.duration) || 0), 0)} min
+                        {displaySubSections.reduce((sum, sub) => sum + (parseDuration(sub.duration) || 0), 0)} min
                     </span>
                     <span className="text-muted-foreground">total</span>
                 </div>
@@ -414,7 +534,7 @@ export default function SubSectionList({
 
             {/* Sub-sections List */}
             <div className="space-y-2">
-                {subSections.map((subSection, index) => (
+                {displaySubSections.map((subSection, index) => (
                     <SubSectionItem
                         key={subSection.id}
                         subSection={subSection}
@@ -422,23 +542,26 @@ export default function SubSectionList({
                         sectionId={sectionId}
                         courseId={courseId}
                         isExpanded={expandedSubSections[subSection.id]}
-                        isDragging={draggingSubSection === subSection.id}
-                        isDragOver={dragOverSubSection === subSection.id}
+                        isDragging={draggingSubSection === String(subSection.id)}
+                        isDragOver={dragOverSubSection === String(subSection.id)}
+                        dropPosition={dropPosition}
                         onToggle={() => toggleSubSection(subSection.id)}
                         onEdit={() => handleEditSubSection(subSection)}
                         onDelete={() => handleDeleteSubSection(subSection.id, subSection.title)}
                         onDuplicate={() => handleDuplicateSubSection(subSection)}
                         onEditModule={onEditModule}
+                        onRefreshSections={onRefreshSections}
                         onDragStart={(e) => handleDragStart(e, subSection.id)}
                         onDragOver={(e) => handleDragOver(e, subSection.id)}
                         onDragLeave={handleDragLeave}
                         onDrop={(e) => handleDrop(e, subSection.id)}
+                        onDragEnd={handleDragEnd}
                     />
                 ))}
             </div>
 
             {/* Add Sub-section Button */}
-            <motion.div
+            <Motion.div
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 className="pt-2"
@@ -451,7 +574,7 @@ export default function SubSectionList({
                     <Plus className="h-4 w-4" />
                     Add Another Sub-section
                 </Button>
-            </motion.div>
+            </Motion.div>
         </div>
     );
 }
@@ -469,10 +592,13 @@ function SubSectionItem({
     onDelete,
     onDuplicate,
     onEditModule,
+    onRefreshSections,
     onDragStart,
     onDragOver,
     onDragLeave,
-    onDrop
+    onDrop,
+    onDragEnd,
+    dropPosition
 }) {
     const [showOptions, setShowOptions] = useState(false);
 
@@ -551,7 +677,7 @@ function SubSectionItem({
     }, [sectionId, subSection.id, courseId, onEditModule]);
 
     return (
-        <motion.div
+        <Motion.div
             layout
             initial={{ opacity: 0, y: -10 }}
             animate={{
@@ -565,13 +691,21 @@ function SubSectionItem({
                 stiffness: 300,
                 damping: 30
             }}
-            className={`relative border rounded-lg overflow-hidden ${isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-pointer'} ${isDragOver ? 'border-primary ring-2 ring-primary/20' : ''}`}
+            className={`relative border rounded-lg overflow-visible ${isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-pointer'} ${isDragOver ? 'border-primary ring-2 ring-primary/20' : ''}`}
             draggable
             onDragStart={onDragStart}
             onDragOver={onDragOver}
             onDragLeave={onDragLeave}
             onDrop={onDrop}
+            onDragEnd={onDragEnd}
         >
+            {dropPosition?.subSectionId === String(subSection.id) && (
+                <div
+                    className={`absolute left-0 right-0 h-0.5 bg-primary ${
+                        dropPosition.position === 'before' ? 'top-0' : 'bottom-0'
+                    }`}
+                />
+            )}
             {/* Sub-section Header */}
             <div
                 className="flex items-center justify-between p-3 hover:bg-muted/30 transition-colors"
@@ -582,6 +716,14 @@ function SubSectionItem({
                     <div
                         className="cursor-move opacity-60 hover:opacity-100 transition-opacity"
                         draggable
+                        onDragStart={(e) => {
+                            e.stopPropagation();
+                            onDragStart(e);
+                        }}
+                        onDragEnd={(e) => {
+                            e.stopPropagation();
+                            onDragEnd(e);
+                        }}
                         onClick={(e) => e.stopPropagation()}
                     >
                         <GripVertical className="h-4 w-4 text-muted-foreground" />
@@ -680,7 +822,7 @@ function SubSectionItem({
 
                         <AnimatePresence>
                             {showOptions && (
-                                <motion.div
+                                <Motion.div
                                     initial={{ opacity: 0, scale: 0.9, y: -10 }}
                                     animate={{ opacity: 1, scale: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.9, y: -10 }}
@@ -731,7 +873,7 @@ function SubSectionItem({
                                             </Button>
                                         )}
                                     </div>
-                                </motion.div>
+                                </Motion.div>
                             )}
                         </AnimatePresence>
                     </div>
@@ -741,11 +883,11 @@ function SubSectionItem({
             {/* Sub-section Content (Collapsible) */}
             <AnimatePresence>
                 {isExpanded && (
-                    <motion.div
+                    <Motion.div
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="border-t"
+                        className="border-t overflow-hidden"
                     >
                         <Card className="border-0 rounded-none shadow-none">
                             <CardContent className="p-4 space-y-4">
@@ -820,10 +962,10 @@ function SubSectionItem({
                                 </div>
                             </CardContent>
                         </Card>
-                    </motion.div>
+                    </Motion.div>
                 )}
             </AnimatePresence>
-        </motion.div>
+        </Motion.div>
     );
 }
 

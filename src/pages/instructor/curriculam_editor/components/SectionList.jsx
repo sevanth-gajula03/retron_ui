@@ -869,18 +869,23 @@ export default function SectionList({ sections, courseId, onEditModule, onRefres
     };
 
     const handleDragStart = (e, sectionId) => {
-        setDraggingSection(sectionId);
-        e.dataTransfer.setData('text/plain', sectionId);
+        const id = String(sectionId);
+        setDraggingSection(id);
+        e.dataTransfer.setData('application/x-dnd-type', 'section');
+        e.dataTransfer.setData('text/plain', id);
         e.dataTransfer.effectAllowed = 'move';
     };
 
     const handleDragOver = (e, sectionId) => {
         e.preventDefault();
-        setDragOverSection(sectionId);
+        const dragType = e.dataTransfer.getData('application/x-dnd-type');
+        if (dragType && dragType !== 'section') return;
+        const id = String(sectionId);
+        setDragOverSection(id);
         const rect = e.currentTarget.getBoundingClientRect();
         const offsetY = e.clientY - rect.top;
         const position = offsetY < rect.height / 2 ? 'before' : 'after';
-        setDropPosition({ sectionId, position });
+        setDropPosition({ sectionId: id, position });
     };
 
     const handleDragLeave = () => {
@@ -890,9 +895,16 @@ export default function SectionList({ sections, courseId, onEditModule, onRefres
 
     const handleDrop = async (e, targetSectionId) => {
         e.preventDefault();
-        const draggedSectionId = e.dataTransfer.getData('text/plain');
+        const dragType = e.dataTransfer.getData('application/x-dnd-type');
+        if (dragType && dragType !== 'section') {
+            setDragOverSection(null);
+            setDropPosition(null);
+            return;
+        }
+        const draggedSectionId = e.dataTransfer.getData('text/plain') || String(draggingSection || "");
+        const targetId = String(targetSectionId);
 
-        if (draggedSectionId === targetSectionId) {
+        if (draggedSectionId === targetId) {
             setDragOverSection(null);
             setDropPosition(null);
             return;
@@ -920,8 +932,8 @@ export default function SectionList({ sections, courseId, onEditModule, onRefres
         if (confirmed) {
             try {
                 const orderedSections = sortSectionsByOrder(sections || []);
-                const draggedIndex = orderedSections.findIndex(s => s.id === draggedSectionId);
-                const targetIndex = orderedSections.findIndex(s => s.id === targetSectionId);
+                const draggedIndex = orderedSections.findIndex(s => String(s.id) === draggedSectionId);
+                const targetIndex = orderedSections.findIndex(s => String(s.id) === targetId);
 
                 if (draggedIndex === -1 || targetIndex === -1) {
                     throw new Error("Sections not found");
@@ -929,7 +941,7 @@ export default function SectionList({ sections, courseId, onEditModule, onRefres
 
                 const reordered = [...orderedSections];
                 const [movedSection] = reordered.splice(draggedIndex, 1);
-                const isAfter = dropPosition?.sectionId === targetSectionId && dropPosition?.position === 'after';
+                const isAfter = dropPosition?.sectionId === targetId && dropPosition?.position === 'after';
                 let insertIndex = isAfter ? targetIndex + 1 : targetIndex;
                 if (draggedIndex < insertIndex) {
                     insertIndex -= 1;
@@ -1146,8 +1158,8 @@ export default function SectionList({ sections, courseId, onEditModule, onRefres
                             index={index}
                             courseId={courseId}
                             isExpanded={expandedSections[section.id]}
-                            isDragging={draggingSection === section.id}
-                            isDragOver={dragOverSection === section.id}
+                            isDragging={draggingSection === String(section.id)}
+                            isDragOver={dragOverSection === String(section.id)}
                             dropPosition={dropPosition}
                             isSelected={selectedSections.includes(section.id)}
                             onToggle={() => toggleSection(section.id)}
@@ -1244,7 +1256,7 @@ function SectionItem({
             onDragLeave={onDragLeave}
             onDrop={onDrop}
         >
-            {dropPosition?.sectionId === section.id && (
+            {dropPosition?.sectionId === String(section.id) && (
                 <div
                     className={`absolute left-0 right-0 h-0.5 bg-primary ${
                         dropPosition.position === 'before' ? 'top-0' : 'bottom-0'
