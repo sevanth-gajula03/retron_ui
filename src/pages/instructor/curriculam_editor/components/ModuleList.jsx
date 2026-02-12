@@ -1,7 +1,8 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Video, FileText, HelpCircle, Trash2, Edit2, Clock, BarChart } from "lucide-react";
+import { Video, FileText, HelpCircle, Trash2, Edit2, Clock, BarChart, MessageCircle } from "lucide-react";
 import { Button } from "../../../../components/ui/button";
 import { deleteModule } from "../../../../services/moduleService";
+import { parseChatContent } from "../../../../utils/chatContent";
 
 export default function ModuleList({
     modules,
@@ -75,6 +76,8 @@ function ModuleItem({ module, index, sectionId, subSectionId, courseId, onEdit, 
                 return <FileText className="h-4 w-4 text-green-500" />;
             case 'quiz':
                 return <HelpCircle className="h-4 w-4 text-purple-500" />;
+            case 'chat':
+                return <MessageCircle className="h-4 w-4 text-cyan-500" />;
             default:
                 return <FileText className="h-4 w-4 text-gray-500" />;
         }
@@ -85,6 +88,7 @@ function ModuleItem({ module, index, sectionId, subSectionId, courseId, onEdit, 
             case 'video': return 'Video Lesson';
             case 'text': return 'Text Lesson';
             case 'quiz': return 'Quiz';
+            case 'chat': return 'Chat Simulation';
             default: return 'Module';
         }
     };
@@ -93,7 +97,13 @@ function ModuleItem({ module, index, sectionId, subSectionId, courseId, onEdit, 
         if (module.duration) return module.duration;
         if (module.type === 'video') return '15-30 min';
         if (module.type === 'quiz') return '10-20 min';
+        if (module.type === 'chat') return '15-25 min';
         return '20-40 min';
+    };
+
+    const getChatCaseCount = (module) => {
+        if (module.type !== 'chat') return 0;
+        return parseChatContent(module.content).cases.length;
     };
 
     const handleDelete = async () => {
@@ -145,6 +155,13 @@ function ModuleItem({ module, index, sectionId, subSectionId, courseId, onEdit, 
                                 </div>
                             )}
 
+                            {module.type === 'chat' && (
+                                <div className="flex items-center gap-1">
+                                    <MessageCircle className="h-3 w-3" />
+                                    <span>{getChatCaseCount(module)} cases</span>
+                                </div>
+                            )}
+
                             <div className="flex-1"></div>
 
                             <span className="text-xs opacity-70">
@@ -187,7 +204,10 @@ function calculateTotalDuration(modules) {
     const durations = modules.map(module => {
         const duration = module.duration || '';
         const match = duration.match(/(\d+)/);
-        return match ? parseInt(match[1]) : (module.type === 'video' ? 25 : 30);
+        if (match) return parseInt(match[1]);
+        if (module.type === 'video') return 25;
+        if (module.type === 'chat') return 20;
+        return 30;
     });
 
     const totalMinutes = durations.reduce((sum, minutes) => sum + minutes, 0);
@@ -226,6 +246,7 @@ export function ModuleStats({ modules }) {
         video: modules.filter(m => m.type === 'video').length,
         text: modules.filter(m => m.type === 'text').length,
         quiz: modules.filter(m => m.type === 'quiz').length,
+        chat: modules.filter(m => m.type === 'chat').length,
         total: modules.length
     };
 
@@ -249,6 +270,12 @@ export function ModuleStats({ modules }) {
                 color="purple"
                 icon={<HelpCircle className="h-4 w-4" />}
             />
+            <StatItem
+                label="Chats"
+                value={stats.chat}
+                color="cyan"
+                icon={<MessageCircle className="h-4 w-4" />}
+            />
             <div className="ml-auto">
                 <div className="text-2xl font-bold">{stats.total}</div>
                 <div className="text-xs text-muted-foreground">Total</div>
@@ -261,7 +288,8 @@ function StatItem({ label, value, color, icon }) {
     const colorClasses = {
         blue: 'text-blue-600 bg-blue-100',
         green: 'text-green-600 bg-green-100',
-        purple: 'text-purple-600 bg-purple-100'
+        purple: 'text-purple-600 bg-purple-100',
+        cyan: 'text-cyan-600 bg-cyan-100'
     };
 
     return (

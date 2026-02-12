@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Loader2, X, Youtube, Type, Maximize2, Image, Table, HelpCircle } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Loader2, X, Youtube, Type, Maximize2, Image, Table, HelpCircle, MessageCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import RestrictedYouTubeEmbed from "./RestrictedYouTubeEmbed";
 import QuizEditor from "./QuizEditor";
@@ -7,6 +7,8 @@ import RichTextEditor from "./RichTextEditor";
 import { Button } from "../../../../components/ui/button";
 import { Input } from "../../../../components/ui/input";
 import { saveModule, debugFindModule } from "../../../../services/moduleService";
+import { getChatCases } from "../../../../services/chatSimulationService";
+import { parseChatContent, serializeChatContent } from "../../../../utils/chatContent";
 import { useAuth } from "../../../../contexts/AuthContext";
 
 export default function ModuleEditor({ isOpen, onClose, moduleData, courseId }) {
@@ -80,6 +82,25 @@ export default function ModuleEditor({ isOpen, onClose, moduleData, courseId }) 
     const [videoUrl, setVideoUrl] = useState("");
     const [showRichTextEditor, setShowRichTextEditor] = useState(false);
     const [initialized, setInitialized] = useState(false);
+    const [chatCases, setChatCases] = useState([]);
+    const [availableChatCases, setAvailableChatCases] = useState([]);
+    const [chatCasesLoading, setChatCasesLoading] = useState(false);
+    const [chatCasesError, setChatCasesError] = useState("");
+
+    const loadChatCases = useCallback(async () => {
+        setChatCasesLoading(true);
+        setChatCasesError("");
+        try {
+            const cases = await getChatCases();
+            setAvailableChatCases(Array.isArray(cases) ? cases : []);
+        } catch (error) {
+            console.error("❌ Failed to load chat cases:", error);
+            setChatCasesError("Failed to load cases. Please try again.");
+            setAvailableChatCases([]);
+        } finally {
+            setChatCasesLoading(false);
+        }
+    }, []);
 
     // FIXED: Handle extracted module data properly
     useEffect(() => {
@@ -97,6 +118,7 @@ export default function ModuleEditor({ isOpen, onClose, moduleData, courseId }) 
                 quizData: []
             });
             setVideoUrl("");
+            setChatCases([]);
             setInitialized(false);
             return;
         }
@@ -172,6 +194,13 @@ export default function ModuleEditor({ isOpen, onClose, moduleData, courseId }) 
             } else {
                 setVideoUrl("");
             }
+
+            if (extractedModule.type === 'chat') {
+                const parsedChat = parseChatContent(extractedModule.content);
+                setChatCases(parsedChat.cases);
+            } else {
+                setChatCases([]);
+            }
         } else {
             // CREATING NEW MODULE
             console.log("📥 CREATING NEW MODULE");
@@ -198,6 +227,7 @@ export default function ModuleEditor({ isOpen, onClose, moduleData, courseId }) 
             console.log("📥 New module state:", newModule);
             setModule(newModule);
             setVideoUrl("");
+            setChatCases([]);
         }
 
         setInitialized(true);
@@ -219,6 +249,11 @@ export default function ModuleEditor({ isOpen, onClose, moduleData, courseId }) 
             console.log("📊 Current videoUrl:", videoUrl);
         }
     }, [module, videoUrl, initialized]);
+
+    useEffect(() => {
+        if (!isOpen || module.type !== 'chat') return;
+        loadChatCases();
+    }, [isOpen, module.type, loadChatCases]);
 
     if (!isOpen) return null;
 
@@ -294,17 +329,28 @@ export default function ModuleEditor({ isOpen, onClose, moduleData, courseId }) 
             return;
         }
 
+        if (module.type === 'chat' && chatCases.length === 0) {
+            alert("Please select at least one case for the chat simulation");
+            return;
+        }
+
         setLoading(true);
 
         try {
             console.log("📤 Preparing module data for saving...");
 
             // Prepare module data for saving
+            const resolvedContent = module.type === 'chat'
+                ? serializeChatContent(chatCases)
+                : module.type === 'video'
+                    ? videoUrl.trim()
+                    : (module.content || "");
+
             const moduleToSave = {
                 id: module.id,
                 title: module.title.trim(),
                 type: module.type,
-                content: module.type === 'video' ? videoUrl.trim() : (module.content || ""),
+                content: resolvedContent,
                 order: module.order || 0,
                 ...(module.type === 'quiz' && {
                     quizData: module.quizData,
@@ -370,9 +416,15 @@ export default function ModuleEditor({ isOpen, onClose, moduleData, courseId }) 
                     <span className="px-2 py-1 rounded text-xs bg-gray-100 text-gray-800">
                         Type: {module.type.toUpperCase()}
                     </span>
-                    <span className="px-2 py-1 rounded text-xs bg-purple-100 text-purple-800">
-                        Content: {module.content?.length || 0} chars
-                    </span>
+                    {module.type === 'chat' ? (
+                        <span className="px-2 py-1 rounded text-xs bg-cyan-100 text-cyan-800">
+                            Cases: {chatCases.length}
+                        </span>
+                    ) : (
+                        <span className="px-2 py-1 rounded text-xs bg-purple-100 text-purple-800">
+                            Content: {module.content?.length || 0} chars
+                        </span>
+                    )}
                     {module.type === 'quiz' && (
                         <span className="px-2 py-1 rounded text-xs bg-red-100 text-red-800">
                             Questions: {module.quizData?.length || 0}
@@ -421,6 +473,17 @@ export default function ModuleEditor({ isOpen, onClose, moduleData, courseId }) 
                     />
                 )}
 
+                {module.type === 'chat' && (
+                    <ChatEditor
+                        availableCases={availableChatCases}
+                        selectedCases={chatCases}
+                        setSelectedCases={setChatCases}
+                        loading={chatCasesLoading}
+                        error={chatCasesError}
+                        onRetry={loadChatCases}
+                    />
+                )}
+
                 <ModalActions loading={loading} onClose={onClose} />
             </form>
         </Modal>
@@ -455,7 +518,8 @@ function ModalHeader({ moduleType, isNew, onClose }) {
     const titles = {
         'video': isNew ? "Add Video Lesson" : "Edit Video Lesson",
         'text': isNew ? "Add Text Lesson" : "Edit Text Lesson",
-        'quiz': isNew ? "Add Quiz" : "Edit Quiz"
+        'quiz': isNew ? "Add Quiz" : "Edit Quiz",
+        'chat': isNew ? "Add Chat Simulation" : "Edit Chat Simulation"
     };
 
     const title = titles[moduleType] || (isNew ? "Add Module" : "Edit Module");
@@ -463,7 +527,8 @@ function ModalHeader({ moduleType, isNew, onClose }) {
     const icons = {
         'video': <Youtube className="h-5 w-5 text-red-500" />,
         'text': <Type className="h-5 w-5 text-blue-500" />,
-        'quiz': <HelpCircle className="h-5 w-5 text-purple-500" />
+        'quiz': <HelpCircle className="h-5 w-5 text-purple-500" />,
+        'chat': <MessageCircle className="h-5 w-5 text-cyan-500" />
     };
 
     return (
@@ -620,6 +685,118 @@ function TextEditor({ module, setModule, showRichTextEditor, setShowRichTextEdit
                     />
                 )}
             </AnimatePresence>
+        </div>
+    );
+}
+
+function ChatEditor({ availableCases, selectedCases, setSelectedCases, loading, error, onRetry }) {
+    const selectedIds = new Set(selectedCases.map((caseItem) => caseItem.id));
+
+    const handleRemoveCase = (caseId) => {
+        setSelectedCases((prev) => prev.filter((caseItem) => caseItem.id !== caseId));
+    };
+
+    const handleToggleCase = (caseItem) => {
+        if (!caseItem?.id) return;
+        setSelectedCases((prev) => {
+            const exists = prev.some((existing) => existing.id === caseItem.id);
+            if (exists) {
+                return prev.filter((existing) => existing.id !== caseItem.id);
+            }
+            return [
+                ...prev,
+                {
+                    id: caseItem.id,
+                    title: caseItem.title || "",
+                    description: caseItem.description || "",
+                    difficulty: caseItem.difficulty || ""
+                }
+            ];
+        });
+    };
+
+    return (
+        <div className="space-y-4">
+            <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">Simulation Cases *</label>
+                <span className="text-xs text-muted-foreground">Selected: {selectedCases.length}</span>
+            </div>
+
+            {loading && (
+                <div className="text-sm text-muted-foreground">Loading cases...</div>
+            )}
+
+            {!loading && error && (
+                <div className="flex items-center justify-between gap-3 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                    <span>{error}</span>
+                    <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+                        Retry
+                    </Button>
+                </div>
+            )}
+
+            {!loading && !error && availableCases.length === 0 && (
+                <div className="text-sm text-muted-foreground">No cases available yet.</div>
+            )}
+
+            {!loading && !error && availableCases.length > 0 && (
+                <div className="space-y-2">
+                    {availableCases.map((caseItem) => {
+                        const isSelected = selectedIds.has(caseItem.id);
+                        return (
+                            <button
+                                key={caseItem.id}
+                                type="button"
+                                onClick={() => handleToggleCase(caseItem)}
+                                className={`w-full text-left rounded-lg border px-3 py-2 transition ${isSelected ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/30'}`}
+                            >
+                                <div className="flex items-center justify-between gap-2">
+                                    <div>
+                                        <div className="font-medium text-sm">
+                                            {caseItem.title || "Untitled case"}
+                                        </div>
+                                        {caseItem.description && (
+                                            <div className="text-xs text-muted-foreground">
+                                                {caseItem.description}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        {caseItem.difficulty && (
+                                            <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                                                {caseItem.difficulty}
+                                            </span>
+                                        )}
+                                        <span className={`text-xs px-2 py-0.5 rounded-full ${isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                                            {isSelected ? 'Added' : 'Add'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+
+            {selectedCases.length > 0 && (
+                <div className="space-y-2">
+                    <div className="text-xs font-medium text-muted-foreground">Selected Cases</div>
+                    <div className="flex flex-wrap gap-2">
+                        {selectedCases.map((caseItem) => (
+                            <div key={caseItem.id} className="flex items-center gap-2 rounded-full border px-3 py-1 text-xs">
+                                <span className="truncate">{caseItem.title || caseItem.id}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemoveCase(caseItem.id)}
+                                    className="text-muted-foreground hover:text-foreground"
+                                >
+                                    <X className="h-3 w-3" />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -118,6 +118,7 @@ export const calculateModuleStats = (modules) => {
         video: modules.filter(m => m.type === 'video').length,
         text: modules.filter(m => m.type === 'text').length,
         quiz: modules.filter(m => m.type === 'quiz').length,
+        chat: modules.filter(m => m.type === 'chat').length,
         totalDuration: 0,
         totalQuizzes: modules.filter(m => m.type === 'quiz').length,
         totalQuestions: modules.reduce((sum, module) => 

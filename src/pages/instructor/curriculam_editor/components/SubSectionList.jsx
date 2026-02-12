@@ -5,7 +5,7 @@ import { Card, CardContent } from "../../../../components/ui/card";
 import {
     ChevronDown, ChevronRight, Trash2, Edit2, Clock,
     GripVertical, Plus, MoreVertical, Copy, Folder,
-    Video, FileText, HelpCircle, BarChart
+    Video, FileText, HelpCircle, BarChart, MessageCircle
 } from "lucide-react";
 import ModuleList from "./ModuleList";
 import AddModuleButtons from "./AddModuleButtons";
@@ -481,7 +481,8 @@ function SubSectionItem({
         total: subSection.modules?.length || 0,
         video: subSection.modules?.filter(m => m.type === 'video').length || 0,
         text: subSection.modules?.filter(m => m.type === 'text').length || 0,
-        quiz: subSection.modules?.filter(m => m.type === 'quiz').length || 0
+        quiz: subSection.modules?.filter(m => m.type === 'quiz').length || 0,
+        chat: subSection.modules?.filter(m => m.type === 'chat').length || 0
     };
     const handleEditModule = useCallback((moduleOrWrapper) => {
         console.log("🔍 handleEditModule called with:", moduleOrWrapper);
@@ -514,7 +515,7 @@ function SubSectionItem({
                 type,
                 content: "",
                 description: "",
-                duration: type === 'video' ? "15 min" : type === 'quiz' ? "10 min" : "5 min",
+                duration: type === 'video' ? "15 min" : type === 'quiz' ? "10 min" : type === 'chat' ? "20 min" : "5 min",
                 isActive: true,
                 videoUrl: type === 'video' ? "" : undefined,
                 transcript: "",
@@ -638,6 +639,11 @@ function SubSectionItem({
                                     <div className="flex items-center gap-1">
                                         <HelpCircle className="h-3 w-3 text-purple-500" />
                                         <span>{moduleStats.quiz}</span>
+                                    </div>
+
+                                    <div className="flex items-center gap-1">
+                                        <MessageCircle className="h-3 w-3 text-cyan-500" />
+                                        <span>{moduleStats.chat}</span>
                                     </div>
                                 </>
                             )}
