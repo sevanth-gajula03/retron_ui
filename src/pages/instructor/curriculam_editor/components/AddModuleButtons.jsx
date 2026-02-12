@@ -1,4 +1,4 @@
-import { Plus, Video, FileText, HelpCircle, Sparkles, Zap, Layout, MoreVertical } from "lucide-react";
+import { Plus, Video, FileText, HelpCircle, Sparkles, Zap, Layout, MoreVertical, MessageCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { Button } from "../../../../components/ui/button";
@@ -55,6 +55,19 @@ export default function AddModuleButtons({
                 { title: 'Quick Quiz', questions: 5 },
                 { title: 'Assessment', questions: 10 },
                 { title: 'Practice Test', questions: 20 }
+            ]
+        },
+        {
+            type: 'chat',
+            label: 'Chat Simulation',
+            icon: <MessageCircle className="h-4 w-4" />,
+            color: 'text-cyan-600',
+            bgColor: 'bg-cyan-100',
+            description: 'Run AI diagnostic chat simulations',
+            quickTemplates: [
+                { title: 'Intro Simulation', duration: '15 min' },
+                { title: 'Guided Simulation', duration: '20 min' },
+                { title: 'Advanced Simulation', duration: '30 min' }
             ]
         }
     ];
@@ -399,6 +412,7 @@ export function ModuleTypeStats({ modules = [] }) {
         text: modules.filter(m => m.type === 'text').length,
         quiz: modules.filter(m => m.type === 'quiz').length,
         assignment: modules.filter(m => m.type === 'assignment').length,
+        chat: modules.filter(m => m.type === 'chat').length,
         total: modules.length
     };
 
@@ -428,6 +442,14 @@ export function ModuleTypeStats({ modules = [] }) {
                     color="purple"
                 />
             )}
+            {stats.chat > 0 && (
+                <StatItem
+                    icon={<MessageCircle className="h-4 w-4" />}
+                    count={stats.chat}
+                    label="Chats"
+                    color="cyan"
+                />
+            )}
             {stats.assignment > 0 && (
                 <StatItem
                     icon={<Layout className="h-4 w-4" />}
@@ -449,7 +471,8 @@ function StatItem({ icon, count, label, color }) {
         blue: 'text-blue-600 bg-blue-100',
         green: 'text-green-600 bg-green-100',
         purple: 'text-purple-600 bg-purple-100',
-        orange: 'text-orange-600 bg-orange-100'
+        orange: 'text-orange-600 bg-orange-100',
+        cyan: 'text-cyan-600 bg-cyan-100'
     };
 
     return (
