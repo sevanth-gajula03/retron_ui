@@ -1,4 +1,4 @@
-import { useState, useContext, useEffect } from "react";
+import { useState, useContext, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     ChevronDown, ChevronRight, GripVertical, Trash2, Plus, Clock,
@@ -1237,7 +1237,7 @@ function SectionItem({
                 scale: isDragOver ? 1.02 : 1,
                 backgroundColor: isDragOver ? 'rgba(59, 130, 246, 0.05)' : 'transparent'
             }}
-            className={`relative border rounded-lg overflow-hidden transition-all duration-200 ${isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-pointer'} ${isDragOver ? 'border-primary ring-2 ring-primary/20' : ''} ${isSelected ? 'bg-primary/5 border-primary/30' : ''}`}
+            className={`relative border rounded-lg overflow-visible transition-all duration-200 ${isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-pointer'} ${isDragOver ? 'border-primary ring-2 ring-primary/20' : ''} ${isSelected ? 'bg-primary/5 border-primary/30' : ''}`}
             draggable
             onDragStart={onDragStart}
             onDragOver={onDragOver}
@@ -1284,6 +1284,20 @@ function SectionItem({
 
 function SectionHeader({ section, index, isExpanded, isSelected, onToggle, onSelect, onEdit, onDelete, onDuplicate, onAddSubSection }) {
     const [showOptions, setShowOptions] = useState(false);
+    const optionsRef = useRef(null);
+
+    useEffect(() => {
+        if (!showOptions) return;
+        const handleClickOutside = (event) => {
+            if (optionsRef.current && !optionsRef.current.contains(event.target)) {
+                setShowOptions(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [showOptions]);
 
     const moduleStats = {
         total: section?.modules?.length || 0,
@@ -1399,7 +1413,7 @@ function SectionHeader({ section, index, isExpanded, isSelected, onToggle, onSel
                 </Button>
 
                 {/* More Options Dropdown */}
-                <div className="relative">
+                <div className="relative" ref={optionsRef}>
                     <Button
                         variant="ghost"
                         size="sm"
@@ -1415,7 +1429,7 @@ function SectionHeader({ section, index, isExpanded, isSelected, onToggle, onSel
                                 initial={{ opacity: 0, scale: 0.9, y: -10 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.9, y: -10 }}
-                                className="absolute right-0 top-full mt-1 w-56 bg-popover border rounded-lg shadow-lg z-10"
+                                className="absolute right-0 top-full mt-1 w-56 bg-popover border rounded-lg shadow-lg z-50"
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 <div className="p-2 space-y-1">
