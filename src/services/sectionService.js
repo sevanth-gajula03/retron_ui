@@ -86,13 +86,23 @@ export const getSubSection = async (_courseId, _sectionId, subSectionId) => {
 
 export const updateSubSection = async (_courseId, _sectionId, subSectionId, updatedData) => {
     if (!subSectionId) throw new Error("Sub-section ID is required");
-    return apiClient.patch(`/subsections/${subSectionId}`, {
-        title: updatedData.title,
-        description: updatedData.description,
-        objectives: updatedData.objectives || [],
-        duration: updatedData.duration,
-        order: updatedData.order
-    });
+    const payload = {};
+    if (Object.prototype.hasOwnProperty.call(updatedData, "title")) {
+        payload.title = updatedData.title;
+    }
+    if (Object.prototype.hasOwnProperty.call(updatedData, "description")) {
+        payload.description = updatedData.description;
+    }
+    if (Object.prototype.hasOwnProperty.call(updatedData, "objectives")) {
+        payload.objectives = updatedData.objectives || [];
+    }
+    if (Object.prototype.hasOwnProperty.call(updatedData, "duration")) {
+        payload.duration = updatedData.duration;
+    }
+    if (Object.prototype.hasOwnProperty.call(updatedData, "order")) {
+        payload.order = updatedData.order;
+    }
+    return apiClient.patch(`/subsections/${subSectionId}`, payload);
 };
 
 export const deleteSubSection = async (_courseId, _sectionId, subSectionId) => {
