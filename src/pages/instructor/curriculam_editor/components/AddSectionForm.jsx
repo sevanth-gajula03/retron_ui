@@ -46,7 +46,8 @@ export default function AddSectionForm({ courseId, sectionsLength, onSectionAdde
                 title: newSectionTitle.trim(),
                 // You can add other properties here if needed
                 description: "",
-                duration: "60 min"
+                duration: "60 min",
+                order: sectionsLength + 1
             });
 
             setNewSectionTitle("");

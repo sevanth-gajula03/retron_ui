@@ -31,6 +31,7 @@ export default function SectionList({ sections, courseId, onEditModule, onRefres
     const [expandedSections, setExpandedSections] = useState({});
     const [draggingSection, setDraggingSection] = useState(null);
     const [dragOverSection, setDragOverSection] = useState(null);
+    const [dropPosition, setDropPosition] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [filteredSections, setFilteredSections] = useState([]);
     const [selectedSections, setSelectedSections] = useState([]);
@@ -38,6 +39,21 @@ export default function SectionList({ sections, courseId, onEditModule, onRefres
 
     const { showModal, showConfirmModal } = useContext(ModalContext);
     const { toast } = useToast();
+
+    const sortSectionsByOrder = (list) => {
+        const items = Array.isArray(list) ? list : [];
+        return items
+            .map((section, index) => {
+                const parsedOrder = Number(section?.order);
+                return {
+                    section,
+                    index,
+                    order: Number.isFinite(parsedOrder) ? parsedOrder : index + 1
+                };
+            })
+            .sort((a, b) => (a.order - b.order) || (a.index - b.index))
+            .map((item) => item.section);
+    };
 
     // Initialize filtered sections when sections data loads
     useEffect(() => {
@@ -48,17 +64,17 @@ export default function SectionList({ sections, courseId, onEditModule, onRefres
 
         if (sections !== undefined) {
             setIsLoading(false);
-            setFilteredSections(sections || []);
+            setFilteredSections(sortSectionsByOrder(sections || []));
         }
     }, [sections]);
 
     // Update filtered sections when search term changes
     useEffect(() => {
         if (!searchTerm.trim()) {
-            setFilteredSections(sections || []);
+            setFilteredSections(sortSectionsByOrder(sections || []));
         } else {
             const term = searchTerm.toLowerCase();
-            const filtered = (sections || []).filter(section => {
+            const filtered = sortSectionsByOrder(sections || []).filter(section => {
                 if (!section) return false;
 
                 const matchesTitle = section.title?.toLowerCase().includes(term) || false;
@@ -861,10 +877,15 @@ export default function SectionList({ sections, courseId, onEditModule, onRefres
     const handleDragOver = (e, sectionId) => {
         e.preventDefault();
         setDragOverSection(sectionId);
+        const rect = e.currentTarget.getBoundingClientRect();
+        const offsetY = e.clientY - rect.top;
+        const position = offsetY < rect.height / 2 ? 'before' : 'after';
+        setDropPosition({ sectionId, position });
     };
 
     const handleDragLeave = () => {
         setDragOverSection(null);
+        setDropPosition(null);
     };
 
     const handleDrop = async (e, targetSectionId) => {
@@ -873,6 +894,19 @@ export default function SectionList({ sections, courseId, onEditModule, onRefres
 
         if (draggedSectionId === targetSectionId) {
             setDragOverSection(null);
+            setDropPosition(null);
+            return;
+        }
+
+        if (searchTerm.trim()) {
+            toast({
+                title: "Clear search to reorder",
+                description: "Please clear the search filter before reordering sections.",
+                variant: "default"
+            });
+            setDragOverSection(null);
+            setDraggingSection(null);
+            setDropPosition(null);
             return;
         }
 
@@ -885,25 +919,33 @@ export default function SectionList({ sections, courseId, onEditModule, onRefres
 
         if (confirmed) {
             try {
-                // Find sections
-                const draggedSection = sections.find(s => s.id === draggedSectionId);
-                const targetSection = sections.find(s => s.id === targetSectionId);
+                const orderedSections = sortSectionsByOrder(sections || []);
+                const draggedIndex = orderedSections.findIndex(s => s.id === draggedSectionId);
+                const targetIndex = orderedSections.findIndex(s => s.id === targetSectionId);
 
-                if (!draggedSection || !targetSection) {
+                if (draggedIndex === -1 || targetIndex === -1) {
                     throw new Error("Sections not found");
                 }
 
-                // Update order in Firebase
-                await updateSection(courseId, draggedSectionId, {
-                    order: targetSection.order,
-                    updatedAt: new Date().toISOString()
-                });
+                const reordered = [...orderedSections];
+                const [movedSection] = reordered.splice(draggedIndex, 1);
+                const isAfter = dropPosition?.sectionId === targetSectionId && dropPosition?.position === 'after';
+                let insertIndex = isAfter ? targetIndex + 1 : targetIndex;
+                if (draggedIndex < insertIndex) {
+                    insertIndex -= 1;
+                }
+                reordered.splice(insertIndex, 0, movedSection);
 
-                // Also update target section's order
-                await updateSection(courseId, targetSectionId, {
-                    order: draggedSection.order,
-                    updatedAt: new Date().toISOString()
-                });
+                setFilteredSections(reordered);
+
+                await Promise.all(
+                    reordered.map((section, index) =>
+                        updateSection(courseId, section.id, {
+                            order: index + 1,
+                            updatedAt: new Date().toISOString()
+                        })
+                    )
+                );
 
                 if (onRefreshSections) onRefreshSections();
                 toast({
@@ -923,6 +965,7 @@ export default function SectionList({ sections, courseId, onEditModule, onRefres
 
         setDragOverSection(null);
         setDraggingSection(null);
+        setDropPosition(null);
     };
 
     const handleAddFirstSection = async () => {
@@ -1105,6 +1148,7 @@ export default function SectionList({ sections, courseId, onEditModule, onRefres
                             isExpanded={expandedSections[section.id]}
                             isDragging={draggingSection === section.id}
                             isDragOver={dragOverSection === section.id}
+                            dropPosition={dropPosition}
                             isSelected={selectedSections.includes(section.id)}
                             onToggle={() => toggleSection(section.id)}
                             onSelect={() => toggleSectionSelection(section.id)}
@@ -1165,6 +1209,7 @@ function SectionItem({
     isExpanded,
     isDragging,
     isDragOver,
+    dropPosition,
     isSelected,
     onToggle,
     onSelect,
@@ -1192,13 +1237,20 @@ function SectionItem({
                 scale: isDragOver ? 1.02 : 1,
                 backgroundColor: isDragOver ? 'rgba(59, 130, 246, 0.05)' : 'transparent'
             }}
-            className={`border rounded-lg overflow-hidden transition-all duration-200 ${isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-pointer'} ${isDragOver ? 'border-primary ring-2 ring-primary/20' : ''} ${isSelected ? 'bg-primary/5 border-primary/30' : ''}`}
+            className={`relative border rounded-lg overflow-hidden transition-all duration-200 ${isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-pointer'} ${isDragOver ? 'border-primary ring-2 ring-primary/20' : ''} ${isSelected ? 'bg-primary/5 border-primary/30' : ''}`}
             draggable
             onDragStart={onDragStart}
             onDragOver={onDragOver}
             onDragLeave={onDragLeave}
             onDrop={onDrop}
         >
+            {dropPosition?.sectionId === section.id && (
+                <div
+                    className={`absolute left-0 right-0 h-0.5 bg-primary ${
+                        dropPosition.position === 'before' ? 'top-0' : 'bottom-0'
+                    }`}
+                />
+            )}
             <SectionHeader
                 section={section}
                 index={index}
