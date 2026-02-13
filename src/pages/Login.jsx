@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Eye, EyeOff, Loader2, X } from "lucide-react";
 import { getUserHomeRoute } from "../lib/rbac";
 import logo from "../assets/retron-logo-full.jpg";
@@ -85,15 +85,6 @@ export default function Login() {
                     <h2 className="mt-2 text-3xl font-bold tracking-tight text-foreground">
                         Sign in to your account
                     </h2>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                        Or{" "}
-                        <Link
-                            to="/signup"
-                            className="font-medium text-primary hover:text-primary/90"
-                        >
-                            create a new account
-                        </Link>
-                    </p>
                 </div>
                 <form className="mt-8 space-y-6" onSubmit={handleLogin}>
                     <div className="space-y-4 rounded-md shadow-sm">

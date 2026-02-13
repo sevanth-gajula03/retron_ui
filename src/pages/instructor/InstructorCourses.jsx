@@ -4,24 +4,44 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Plus, Edit, Trash2 } from "lucide-react";
 import { apiClient } from "../../lib/apiClient";
+import { invitationService } from "../../services/invitationService";
+import { useAuth } from "../../contexts/AuthContext";
 
 export default function InstructorCourses() {
+    const { user } = useAuth();
     const [courses, setCourses] = useState([]);
+    const [invitations, setInvitations] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         fetchCourses();
-    }, []);
+    }, [user?.email]);
 
     const fetchCourses = async () => {
         try {
             setLoading(true);
             const data = await apiClient.get("/courses");
             setCourses(data);
+            const inviteData = await invitationService.list({ status_filter: "pending" });
+            setInvitations(
+                (inviteData || []).filter((item) =>
+                    user?.email ? item.invitee_email?.toLowerCase() === user.email.toLowerCase() : true
+                )
+            );
         } catch (error) {
             console.error("Error fetching courses:", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleInvitation = async (invitationId, statusValue) => {
+        try {
+            await invitationService.update(invitationId, { status: statusValue });
+            await fetchCourses();
+        } catch (error) {
+            console.error("Failed to update invitation:", error);
+            alert("Could not update invitation.");
         }
     };
 
@@ -49,6 +69,41 @@ export default function InstructorCourses() {
                     </Button>
                 </Link>
             </div>
+
+            {invitations.length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Pending Course Invitations</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                        {invitations.map((invite) => (
+                            <div
+                                key={invite.id}
+                                className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+                            >
+                                <div>
+                                    <div className="font-medium">{invite.invitee_email}</div>
+                                    <div className="text-xs text-muted-foreground">
+                                        Role: {invite.role || "co_instructor"}
+                                    </div>
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleInvitation(invite.id, "rejected")}
+                                    >
+                                        Reject
+                                    </Button>
+                                    <Button size="sm" onClick={() => handleInvitation(invite.id, "accepted")}>
+                                        Accept
+                                    </Button>
+                                </div>
+                            </div>
+                        ))}
+                    </CardContent>
+                </Card>
+            )}
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {courses.map((course) => (

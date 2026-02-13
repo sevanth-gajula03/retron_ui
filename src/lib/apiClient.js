@@ -1,5 +1,5 @@
 // const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-
+// 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://retron-api-1061930308384.asia-south1.run.app/";
 
 
@@ -29,7 +29,16 @@ const request = async (path, { method = "GET", body, headers } = {}) => {
 
     if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(errorText || "Request failed");
+        let message = errorText || "Request failed";
+        try {
+            const parsed = JSON.parse(errorText);
+            if (parsed?.detail && typeof parsed.detail === "string") {
+                message = parsed.detail;
+            }
+        } catch {
+            // Keep text response as fallback.
+        }
+        throw new Error(message);
     }
 
     if (response.status === 204) return null;

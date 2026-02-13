@@ -11,6 +11,7 @@ import {
     performChatAction,
     evaluateChatSession
 } from "../../services/chatSimulationService";
+import { courseProgressService } from "../../services/courseProgressService";
 
 export default function CoursePlayer() {
     const { courseId } = useParams();
@@ -115,6 +116,26 @@ export default function CoursePlayer() {
             setSelectedModule(moduleMap.get(selectedModule.id));
         }
     }, [moduleMap, sections]);
+
+    useEffect(() => {
+        if (!selectedModule || !courseId || moduleMap.size === 0) return;
+        const moduleIds = Array.from(moduleMap.keys());
+        const activeIndex = moduleIds.indexOf(selectedModule.id);
+        const completed = activeIndex >= 0 ? moduleIds.slice(0, activeIndex + 1) : [];
+        const percentage = moduleIds.length > 0 ? Math.round((completed.length / moduleIds.length) * 100) : 0;
+
+        courseProgressService
+            .upsert({
+                course_id: courseId,
+                completed_modules: completed,
+                completed_module_count: completed.length,
+                module_progress_percentage: percentage,
+                last_accessed: new Date().toISOString(),
+            })
+            .catch((error) => {
+                console.error("Failed to sync course progress:", error);
+            });
+    }, [selectedModule?.id, courseId, moduleMap.size]);
 
     if (loading) return <div>Loading course...</div>;
     if (!course) return <div>Course not found.</div>;

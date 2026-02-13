@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 import { apiClient } from "../../../lib/apiClient";
+import { useAuth } from "../../../contexts/AuthContext";
 
 export default function InstructorAssessments() {
+    const { user } = useAuth();
     const [assessments, setAssessments] = useState([]);
     const [courses, setCourses] = useState([]);
     const [title, setTitle] = useState("");
@@ -11,14 +14,16 @@ export default function InstructorAssessments() {
     const [courseId, setCourseId] = useState("");
 
     useEffect(() => {
+        if (!user?.id) return;
         fetchAssessments();
         fetchCourses();
-    }, []);
+    }, [user?.id]);
 
     const fetchAssessments = async () => {
         try {
             const data = await apiClient.get("/assessments");
-            setAssessments(data);
+            const mine = (data || []).filter((item) => !item.created_by || item.created_by === user?.id);
+            setAssessments(mine);
         } catch (error) {
             console.error("Error fetching assessments:", error);
         }
@@ -39,7 +44,8 @@ export default function InstructorAssessments() {
         await apiClient.post("/assessments", {
             course_id: courseId,
             title,
-            description
+            description,
+            created_by: user?.id,
         });
         setTitle("");
         setDescription("");
@@ -87,10 +93,26 @@ export default function InstructorAssessments() {
                         </div>
                         <div className="space-y-2">
                             {assessments.map((assessment) => (
-                                <div key={assessment.id} className="text-sm">
-                                    {assessment.title}
+                                <div key={assessment.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm">
+                                    <div>
+                                        <div className="font-medium">{assessment.title}</div>
+                                        <div className="text-xs text-muted-foreground">
+                                            {assessment.description || "No description"}
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Link to={`/instructor/assessments/edit/${assessment.id}`}>
+                                            <Button size="sm" variant="outline">Edit</Button>
+                                        </Link>
+                                        <Link to={`/instructor/assessments/results/${assessment.id}`}>
+                                            <Button size="sm" variant="outline">Results</Button>
+                                        </Link>
+                                    </div>
                                 </div>
                             ))}
+                            {assessments.length === 0 && (
+                                <div className="text-sm text-muted-foreground">No assessments created yet.</div>
+                            )}
                         </div>
                     </div>
                 </CardContent>
