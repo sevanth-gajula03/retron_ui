@@ -14,4 +14,6 @@ export const userService = {
     list: (params = {}) => apiClient.get(`/users${toQuery(params)}`),
     getById: (userId) => apiClient.get(`/users/${userId}`),
     update: (userId, payload) => apiClient.patch(`/users/${userId}`, payload),
+    provision: (payload) => apiClient.post("/users/provision", payload),
+    resendSetupEmail: (userId) => apiClient.post(`/users/${userId}/resend-setup-email`),
 };

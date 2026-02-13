@@ -9,7 +9,6 @@ import { ModalProvider, ToastProvider } from "./contexts/ModalContext";
 
 // Lazy load pages for performance (Code Splitting)
 const Login = React.lazy(() => import("./pages/Login"));
-const Signup = React.lazy(() => import("./pages/Signup"));
 const FixAdminRole = React.lazy(() => import("./pages/FixAdminRole"));
 const AdminDashboard = React.lazy(() => import("./pages/AdminDashboard"));
 const InstructorDashboard = React.lazy(() => import("./pages/InstructorDashboard"));
@@ -49,7 +48,7 @@ function App() {
               <Suspense fallback={<PageLoader />}>
                 <Routes>
                   <Route path="/login" element={<Login />} />
-                  <Route path="/signup" element={<Signup />} />
+                  <Route path="/signup" element={<Navigate to="/login" replace />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
 
                   {/* Legal Pages (Public) */}
