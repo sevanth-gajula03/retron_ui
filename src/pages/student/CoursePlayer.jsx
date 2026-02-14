@@ -63,14 +63,16 @@ export default function CoursePlayer() {
             const youtubeId = extractYouTubeId(mod.content);
             if (youtubeId) {
                 return (
-                    <div className="aspect-video w-full overflow-hidden rounded-lg border">
-                        <iframe
-                            className="h-full w-full"
-                            src={`https://www.youtube.com/embed/${youtubeId}`}
-                            title={mod.title || "Video"}
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                        />
+                    <div className="flex h-full items-center justify-center">
+                        <div className="aspect-video w-full overflow-hidden rounded-lg border bg-black/5 lg:h-full lg:w-auto lg:max-w-full lg:mx-auto">
+                            <iframe
+                                className="h-full w-full"
+                                src={`https://www.youtube.com/embed/${youtubeId}`}
+                                title={mod.title || "Video"}
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                            />
+                        </div>
                     </div>
                 );
             }
@@ -141,7 +143,7 @@ export default function CoursePlayer() {
     if (!course) return <div>Course not found.</div>;
 
     return (
-        <div className="space-y-8">
+        <div className="flex h-full min-h-0 flex-col gap-6">
             <div className="rounded-xl border bg-gradient-to-br from-primary/5 via-background to-accent/10 p-6">
                 <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                     <div className="space-y-2">
@@ -154,13 +156,13 @@ export default function CoursePlayer() {
                 </div>
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
-                <div className="space-y-4">
-                    <Card className="sticky top-6">
-                        <CardHeader>
+            <div className="grid flex-1 min-h-0 gap-6 lg:grid-cols-[340px_1fr]">
+                <div className="flex min-h-0 flex-col">
+                    <Card className="flex h-full flex-col">
+                        <CardHeader className="shrink-0">
                             <CardTitle className="text-base">Curriculum</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+                        <CardContent className="flex-1 min-h-0 space-y-4 overflow-y-auto pr-1">
                             {sections.map((section) => (
                                 <div key={section.id} className="space-y-3">
                                     <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -218,8 +220,8 @@ export default function CoursePlayer() {
                     </Card>
                 </div>
 
-                <Card>
-                    <CardHeader>
+                <Card className="flex h-full flex-col">
+                    <CardHeader className="shrink-0">
                         <CardTitle className="text-lg">
                             {selectedModule?.title || "Select a module"}
                         </CardTitle>
@@ -230,9 +232,9 @@ export default function CoursePlayer() {
                             </div>
                         )}
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="flex-1 min-h-0">
                         {selectedModule ? (
-                            <div className="space-y-4">
+                            <div className={selectedModule.type === "video" ? "h-full" : "space-y-4"}>
                                 {renderModuleContent(selectedModule)}
                             </div>
                         ) : (
