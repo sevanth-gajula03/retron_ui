@@ -185,9 +185,9 @@ export default function CoursePlayer() {
                 </div>
             </div>
 
-            <div className="grid flex-1 min-h-0 gap-6 lg:grid-cols-[340px_1fr]">
+            <div className="grid flex-1 min-h-0 auto-rows-fr gap-6 lg:grid-cols-[340px_1fr]">
                 <div className="flex min-h-0 flex-col">
-                    <Card className="flex h-full flex-col">
+                    <Card className="flex h-full min-h-0 flex-col">
                         <CardHeader className="shrink-0">
                             <CardTitle className="text-base">Curriculum</CardTitle>
                         </CardHeader>
@@ -254,7 +254,7 @@ export default function CoursePlayer() {
                     </Card>
                 </div>
 
-                <Card className="flex h-full flex-col">
+                <Card className="flex h-full min-h-0 flex-col">
                     <CardHeader className="shrink-0">
                         <CardTitle className="text-lg">
                             {selectedModule?.title || "Select a module"}
@@ -266,7 +266,11 @@ export default function CoursePlayer() {
                             </div>
                         )}
                     </CardHeader>
-                    <CardContent className="flex-1 min-h-0">
+                    <CardContent
+                        className={`flex-1 min-h-0 ${
+                            selectedModule?.type === "chat" ? "overflow-y-auto pr-1" : ""
+                        }`}
+                    >
                         {selectedModule ? (
                             <div className={selectedModule.type === "video" ? "h-full" : "space-y-4"}>
                                 {renderModuleContent(selectedModule)}
