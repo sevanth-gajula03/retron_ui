@@ -65,19 +65,19 @@ export default function ModuleEditor({ isOpen, onClose, onSave, initialData }) {
                 attachments: actualModuleData.attachments || [],
                 tags: actualModuleData.tags || [],
                 objectives: actualModuleData.objectives || [],
-                quizData: actualModuleData.quizData || [],
-                quizQuestions: actualModuleData.quizQuestions || []
-            }));
+                 quizData: actualModuleData.quizData || actualModuleData.quiz_data || [],
+                 quizQuestions: actualModuleData.quizQuestions || []
+             }));
 
             if (actualModuleData.type === 'video') {
                 setVideoUrl(actualModuleData.content || actualModuleData.videoUrl || "");
             }
 
-            if (actualModuleData.type === 'quiz') {
-                // Use quizData from the module or initialize empty array
-                const questions = actualModuleData.quizData || actualModuleData.quizQuestions || [];
-                setQuizQuestions(questions);
-            }
+             if (actualModuleData.type === 'quiz') {
+                 // Use quizData from the module or initialize empty array
+                 const questions = actualModuleData.quizData || actualModuleData.quiz_data || actualModuleData.quizQuestions || [];
+                 setQuizQuestions(questions);
+             }
         }
     }, [initialData]);
 

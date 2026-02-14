@@ -12,6 +12,7 @@ import {
     evaluateChatSession
 } from "../../services/chatSimulationService";
 import { courseProgressService } from "../../services/courseProgressService";
+import QuizModulePlayer from "./components/QuizModulePlayer";
 
 export default function CoursePlayer() {
     const { courseId } = useParams();
@@ -57,6 +58,9 @@ export default function CoursePlayer() {
     const renderModuleContent = (mod) => {
         if (mod.type === "chat") {
             return <ChatSimulationPanel module={mod} />;
+        }
+        if (mod.type === "quiz") {
+            return <QuizModulePlayer module={mod} />;
         }
         if (!mod?.content) return null;
         if (mod.type === "video") {

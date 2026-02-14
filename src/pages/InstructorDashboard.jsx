@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import InstructorCourses from "./instructor/InstructorCourses";
 import CourseEditor from "./instructor/CourseEditor";
 import InstructorStudents from "./instructor/InstructorStudents";
+import StudentDetails from "./instructor/students/StudentDetails";
 import InstructorAnalytics from "./instructor/InstructorAnalytics";
 import InstructorAnnouncements from "./instructor/InstructorAnnouncements";
 import InstructorAssessments from "./instructor/assessments/InstructorAssessments";
@@ -10,7 +11,6 @@ import AssessmentResults from "./instructor/assessments/AssessmentResults";
 import PartnerInstructors from "./instructor/mentor-management/PartnerInstructor";
 import MentorDetails from "./instructor/mentor-management/MentorDetails";
 import StudentAssignmentOverview from "./instructor/mentor-management/StudentAssignmentOverview";
-// Add these imports
 
 export default function InstructorDashboard() {
     return (
@@ -22,6 +22,7 @@ export default function InstructorDashboard() {
             <Route path="courses/new" element={<CourseEditor />} />
             <Route path="courses/edit/:courseId" element={<CourseEditor />} />
             <Route path="students" element={<InstructorStudents />} />
+            <Route path="students/:studentId" element={<StudentDetails />} />
 
             {/* Assessment Routes */}
             <Route path="assessments" element={<InstructorAssessments />} />

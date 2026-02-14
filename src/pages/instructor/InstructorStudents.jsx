@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { apiClient } from "../../lib/apiClient";
@@ -168,7 +169,14 @@ export default function InstructorStudents() {
                                         return (
                                             <tr key={row.id} className="border-b last:border-b-0">
                                                 <td className="py-3 pr-4">
-                                                    <div className="font-medium">{row.studentName}</div>
+                                                    <div className="font-medium">
+                                                        <Link
+                                                            to={`/instructor/students/${row.studentId}`}
+                                                            className="hover:underline"
+                                                        >
+                                                            {row.studentName}
+                                                        </Link>
+                                                    </div>
                                                     <div className="text-xs text-muted-foreground">{row.studentEmail}</div>
                                                 </td>
                                                 <td className="py-3 pr-4">{row.courseTitle}</td>
@@ -195,18 +203,23 @@ export default function InstructorStudents() {
                                                     </span>
                                                 </td>
                                                 <td className="py-3">
-                                                    <Button
-                                                        size="sm"
-                                                        variant={isBanned ? "outline" : "destructive"}
-                                                        onClick={() => toggleBan(row)}
-                                                        disabled={savingId === row.id}
-                                                    >
-                                                        {savingId === row.id
-                                                            ? "Saving..."
-                                                            : isBanned
-                                                              ? "Unban"
-                                                              : "Ban"}
-                                                    </Button>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        <Link to={`/instructor/students/${row.studentId}`}>
+                                                            <Button size="sm" variant="outline">Details</Button>
+                                                        </Link>
+                                                        <Button
+                                                            size="sm"
+                                                            variant={isBanned ? "outline" : "destructive"}
+                                                            onClick={() => toggleBan(row)}
+                                                            disabled={savingId === row.id}
+                                                        >
+                                                            {savingId === row.id
+                                                                ? "Saving..."
+                                                                : isBanned
+                                                                  ? "Unban"
+                                                                  : "Ban"}
+                                                        </Button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         );

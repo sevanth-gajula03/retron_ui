@@ -6,6 +6,9 @@ export const saveModule = async ({ courseId, sectionId, subSectionId, module, is
     }
 
     const content = module.type === "video" && videoUrl ? extractYouTubeId(videoUrl) || videoUrl : module.content || "";
+    const quizData = module.type === "quiz"
+        ? (module.quizData || module.quiz_data || module.quizQuestions || null)
+        : null;
     const resolvedSubSectionId = subSectionId || module?.sub_section_id || module?.subSectionId || null;
 
     const isUuid = (value) => typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -18,6 +21,7 @@ export const saveModule = async ({ courseId, sectionId, subSectionId, module, is
             title: module.title || "",
             type: module.type,
             content,
+            ...(module.type === "quiz" ? { quiz_data: quizData } : {}),
             order: module.order || 0
         });
     }
@@ -27,6 +31,7 @@ export const saveModule = async ({ courseId, sectionId, subSectionId, module, is
         title: module.title || "",
         type: module.type,
         content,
+        ...(module.type === "quiz" ? { quiz_data: quizData } : {}),
         order: module.order
     });
 };

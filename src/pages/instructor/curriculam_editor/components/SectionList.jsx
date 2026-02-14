@@ -596,7 +596,9 @@ export default function SectionList({ sections, courseId, onEditModule, onRefres
             moduleTitle: module.title,
             moduleType: module.type,
             content: module.content,
-            quizData: module.quizData ? `Has ${module.quizData.length} questions` : 'No quiz data',
+            quizData: (module.quizData || module.quiz_data)
+                ? `Has ${(module.quizData || module.quiz_data).length} questions`
+                : 'No quiz data',
             moduleData: JSON.stringify(module, null, 2)
         });
 
@@ -611,6 +613,10 @@ export default function SectionList({ sections, courseId, onEditModule, onRefres
 
         // For quiz modules: Ensure quizData is properly structured
         if (module.type === 'quiz') {
+            if (!module.quizData && Array.isArray(module.quiz_data)) {
+                // Normalize API snake_case -> UI camelCase.
+                module.quizData = module.quiz_data;
+            }
             if (!module.quizData || !Array.isArray(module.quizData)) {
                 module.quizData = [];
             }

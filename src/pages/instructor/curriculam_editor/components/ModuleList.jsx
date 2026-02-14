@@ -148,10 +148,10 @@ function ModuleItem({ module, index, sectionId, subSectionId, courseId, onEdit, 
                                 <span>{getDuration(module)}</span>
                             </div>
 
-                            {module.type === 'quiz' && module.quizData && (
+                            {module.type === 'quiz' && (module.quizData || module.quiz_data) && (
                                 <div className="flex items-center gap-1">
                                     <BarChart className="h-3 w-3" />
-                                    <span>{module.quizData.length} questions</span>
+                                    <span>{(module.quizData || module.quiz_data).length} questions</span>
                                 </div>
                             )}
 

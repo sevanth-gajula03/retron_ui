@@ -143,8 +143,9 @@ export default function ModuleEditor({ isOpen, onClose, moduleData, courseId }) 
             // Process quiz data for quiz modules
             let quizData = [];
             if (extractedModule.type === 'quiz') {
-                if (extractedModule.quizData && Array.isArray(extractedModule.quizData)) {
-                    quizData = extractedModule.quizData.map(q => ({
+                const rawQuiz = extractedModule.quizData || extractedModule.quiz_data;
+                if (rawQuiz && Array.isArray(rawQuiz)) {
+                    quizData = rawQuiz.map(q => ({
                         question: q.question || "",
                         points: q.points || 1,
                         options: Array.isArray(q.options) ? q.options.map(opt => opt || "") : ['', '', '', ''],
