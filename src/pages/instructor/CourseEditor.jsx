@@ -118,11 +118,7 @@ export default function CourseEditor() {
 
                 {/* <SecuritySettings course={course} setCourse={setCourse} /> */}
 
-                <CourseTeam
-                    courseId={courseId}
-                    course={course}
-                    setCourse={setCourse}
-                />
+                {!isNew && <CourseTeam courseId={courseId} />}
 
                 {/* <RoleManager user={user} courseId={courseId} /> */}
             </form>

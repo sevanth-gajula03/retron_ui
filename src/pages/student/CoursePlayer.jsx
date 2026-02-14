@@ -19,6 +19,7 @@ export default function CoursePlayer() {
     const [course, setCourse] = useState(null);
     const [sections, setSections] = useState([]);
     const [selectedModule, setSelectedModule] = useState(null);
+    const [navLockedForQuiz, setNavLockedForQuiz] = useState(false);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -60,7 +61,12 @@ export default function CoursePlayer() {
             return <ChatSimulationPanel module={mod} />;
         }
         if (mod.type === "quiz") {
-            return <QuizModulePlayer module={mod} />;
+            return (
+                <QuizModulePlayer
+                    module={mod}
+                    onNavigationLockChange={(locked) => setNavLockedForQuiz(Boolean(locked))}
+                />
+            );
         }
         if (!mod?.content) return null;
         if (mod.type === "video") {
@@ -96,6 +102,25 @@ export default function CoursePlayer() {
         }
         return <div className="text-sm text-muted-foreground whitespace-pre-wrap">{mod.content}</div>;
     };
+
+    const handleSelectModule = (nextModule) => {
+        if (!nextModule) return;
+        if (navLockedForQuiz && selectedModule?.id && nextModule.id && String(nextModule.id) !== String(selectedModule.id)) {
+            window.alert("Complete the test before navigating to other curriculum items.");
+            return;
+        }
+        setSelectedModule(nextModule);
+    };
+
+    useEffect(() => {
+        if (!navLockedForQuiz) return;
+        const handler = (e) => {
+            e.preventDefault();
+            e.returnValue = "";
+        };
+        window.addEventListener("beforeunload", handler);
+        return () => window.removeEventListener("beforeunload", handler);
+    }, [navLockedForQuiz]);
 
     const moduleMap = useMemo(() => {
         const map = new Map();
@@ -167,6 +192,11 @@ export default function CoursePlayer() {
                             <CardTitle className="text-base">Curriculum</CardTitle>
                         </CardHeader>
                         <CardContent className="flex-1 min-h-0 space-y-4 overflow-y-auto pr-1">
+                            {navLockedForQuiz && (
+                                <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                                    Test in progress. Navigation is locked until you submit.
+                                </div>
+                            )}
                             {sections.map((section) => (
                                 <div key={section.id} className="space-y-3">
                                     <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -176,7 +206,7 @@ export default function CoursePlayer() {
                                         <button
                                             key={mod.id}
                                             type="button"
-                                            onClick={() => setSelectedModule({ ...mod, sectionTitle: section.title })}
+                                            onClick={() => handleSelectModule({ ...mod, sectionTitle: section.title })}
                                             className={`w-full text-left rounded-md border px-3 py-2 text-sm transition ${
                                                 selectedModule?.id === mod.id
                                                     ? "border-primary bg-primary/10"
@@ -198,7 +228,7 @@ export default function CoursePlayer() {
                                                     key={mod.id}
                                                     type="button"
                                                     onClick={() =>
-                                                        setSelectedModule({
+                                                        handleSelectModule({
                                                             ...mod,
                                                             sectionTitle: section.title,
                                                             subSectionTitle: subSection.title

@@ -1,4 +1,4 @@
-import { useState, useContext, useEffect, useRef } from "react";
+import { useState, useContext, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     ChevronDown, ChevronRight, GripVertical, Trash2, Plus, Clock,
@@ -26,6 +26,7 @@ import SubSectionList from "./SubSectionList";
 import AddModuleButtons from "./AddModuleButtons";
 import { ModalContext } from "../../../../contexts/ModalContext";
 import { useToast } from "../../../../contexts/ToastComponent";
+import { featureFlags } from "../../../../lib/featureFlags";
 
 export default function SectionList({ sections, courseId, onEditModule, onRefreshSections, onAddSection, onEditSection }) {
     const [expandedSections, setExpandedSections] = useState({});
@@ -39,6 +40,36 @@ export default function SectionList({ sections, courseId, onEditModule, onRefres
 
     const { showModal, showConfirmModal } = useContext(ModalContext);
     const { toast } = useToast();
+
+    const handleModuleDeleted = useCallback(({ moduleId, sectionId, subSectionId }) => {
+        if (!moduleId || !sectionId) return;
+
+        setFilteredSections(prev =>
+            (prev || []).map(section => {
+                if (String(section.id) !== String(sectionId)) return section;
+
+                if (subSectionId) {
+                    const updatedSubSections = (section.subSections || []).map(subSection => {
+                        if (String(subSection.id) !== String(subSectionId)) return subSection;
+                        const updatedModules = (subSection.modules || []).filter(
+                            module => String(module.id) !== String(moduleId)
+                        );
+                        return { ...subSection, modules: updatedModules };
+                    });
+                    return { ...section, subSections: updatedSubSections };
+                }
+
+                const updatedModules = (section.modules || []).filter(
+                    module => String(module.id) !== String(moduleId)
+                );
+                return { ...section, modules: updatedModules };
+            })
+        );
+
+        if (onRefreshSections) {
+            onRefreshSections();
+        }
+    }, [onRefreshSections]);
 
     const sortSectionsByOrder = (list) => {
         const items = Array.isArray(list) ? list : [];
@@ -1086,6 +1117,7 @@ export default function SectionList({ sections, courseId, onEditModule, onRefres
     const hasFilteredSections = Array.isArray(filteredSections) && filteredSections.length > 0;
 
     if (!hasSections) {
+        if (!featureFlags.showCurriculumEmptyState) return null;
         return (
             <motion.div
                 initial={{ opacity: 0 }}
@@ -1182,6 +1214,7 @@ export default function SectionList({ sections, courseId, onEditModule, onRefres
                             onDragOver={(e) => handleDragOver(e, section.id)}
                             onDragLeave={handleDragLeave}
                             onDrop={(e) => handleDrop(e, section.id)}
+                            onModuleDeleted={handleModuleDeleted}
                         />
                     ))
                 ) : searchTerm.trim() ? (
@@ -1243,7 +1276,8 @@ function SectionItem({
     onDragStart,
     onDragOver,
     onDragLeave,
-    onDrop
+    onDrop,
+    onModuleDeleted
 }) {
     return (
         <motion.div
@@ -1293,6 +1327,7 @@ function SectionItem({
                         onDeleteSubSection={onDeleteSubSection}
                         onDuplicateSubSection={onDuplicateSubSection}
                         onRefreshSections={onRefreshSections}
+                        onModuleDeleted={onModuleDeleted}
                     />
                 )}
             </AnimatePresence>
@@ -1506,7 +1541,8 @@ function SectionContent(props) {
         onEditSubSection,
         onDeleteSubSection,
         onDuplicateSubSection,
-        onRefreshSections
+        onRefreshSections,
+        onModuleDeleted
     } = props;
     const moduleStats = {
         total: section?.modules?.length || 0,
@@ -1583,7 +1619,7 @@ function SectionContent(props) {
                             module,
                             isNew: false
                         })}
-                        onDeleteModule={() => onRefreshSections && onRefreshSections()}
+                        onDeleteModule={onModuleDeleted}
                     />
                 </div>
             )}
@@ -1610,6 +1646,7 @@ function SectionContent(props) {
                     onDeleteSubSection={onDeleteSubSection}
                     onDuplicateSubSection={onDuplicateSubSection}
                     onRefreshSections={onRefreshSections}
+                    onModuleDeleted={onModuleDeleted}
                 />
             </div>
 
@@ -1693,7 +1730,7 @@ function SectionContent(props) {
 function OverviewCard({ title, value, icon, color, description }) {
     const colorClasses = {
         primary: 'text-primary border-primary/20 bg-primary/5',
-        secondary: 'text-secondary border-secondary/20 bg-secondary/5',
+        secondary: 'text-amber-700 border-amber-200 bg-amber-50',
         blue: 'text-blue-600 border-blue-200 bg-blue-50',
         purple: 'text-purple-600 border-purple-200 bg-purple-50',
         green: 'text-green-600 border-green-200 bg-green-50'

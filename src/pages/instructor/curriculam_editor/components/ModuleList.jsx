@@ -110,7 +110,13 @@ function ModuleItem({ module, index, sectionId, subSectionId, courseId, onEdit, 
         if (window.confirm(`Delete "${module.title}"?`)) {
             try {
                 await deleteModule(courseId, sectionId, subSectionId, module.id);
-                if (onDelete) onDelete(module.id);
+                if (onDelete) {
+                    onDelete({
+                        moduleId: module.id,
+                        sectionId,
+                        subSectionId
+                    });
+                }
             } catch (error) {
                 console.error("Error deleting module:", error);
                 alert("Failed to delete module");

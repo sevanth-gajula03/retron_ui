@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Plus, Trash2 } from "lucide-react";
+import { X, Plus, Trash2, GripVertical } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/button";
@@ -7,12 +7,18 @@ import { Input } from "../../../../components/ui/input";
 
 export default function QuizEditor({ module, setModule }) {
     const [quizQuestions, setQuizQuestions] = useState(module.quizData || []);
+    const timeLimitSeconds = module?.time_limit_seconds ?? module?.timeLimitSeconds ?? null;
+    const timeLimitMinutesValue =
+        typeof timeLimitSeconds === "number" && Number.isFinite(timeLimitSeconds) && timeLimitSeconds > 0
+            ? String(Math.ceil(timeLimitSeconds / 60))
+            : "";
     const [currentQuestion, setCurrentQuestion] = useState({
         question: "",
         options: ["", "", "", ""],
         correctOption: 0,
         points: 1
     });
+    const [draggingIndex, setDraggingIndex] = useState(null);
 
     const handleAddQuestion = () => {
         if (!currentQuestion.question.trim()) {
@@ -55,8 +61,77 @@ export default function QuizEditor({ module, setModule }) {
         setModule({ ...module, quizData: newQuestions });
     };
 
+    const handleReorderQuestions = (fromIndex, toIndex) => {
+        if (fromIndex === toIndex || fromIndex == null || toIndex == null) return;
+        if (fromIndex < 0 || toIndex < 0) return;
+        if (fromIndex >= quizQuestions.length || toIndex >= quizQuestions.length) return;
+
+        const updated = [...quizQuestions];
+        const [moved] = updated.splice(fromIndex, 1);
+        updated.splice(toIndex, 0, moved);
+        setQuizQuestions(updated);
+        setModule({ ...module, quizData: updated });
+    };
+
+    const handleDragStart = (index) => (event) => {
+        setDraggingIndex(index);
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", String(index));
+    };
+
+    const handleDragOver = (event) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+    };
+
+    const handleDrop = (index) => (event) => {
+        event.preventDefault();
+        const fromIndex = Number(event.dataTransfer.getData("text/plain"));
+        if (Number.isNaN(fromIndex)) return;
+        handleReorderQuestions(fromIndex, index);
+        setDraggingIndex(null);
+    };
+
+    const handleDragEnd = () => {
+        setDraggingIndex(null);
+    };
+
     return (
         <div className="space-y-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-lg">Quiz Settings</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium">Time Limit (minutes)</label>
+                        <div className="flex items-center gap-3">
+                            <Input
+                                type="number"
+                                min="1"
+                                step="1"
+                                placeholder="No limit"
+                                value={timeLimitMinutesValue}
+                                onChange={(e) => {
+                                    const raw = e.target.value;
+                                    if (!raw) {
+                                        setModule({ ...module, time_limit_seconds: null });
+                                        return;
+                                    }
+                                    const minutes = parseInt(raw, 10);
+                                    const seconds = Number.isFinite(minutes) && minutes > 0 ? minutes * 60 : null;
+                                    setModule({ ...module, time_limit_seconds: seconds });
+                                }}
+                                className="w-40"
+                            />
+                            <div className="text-xs text-muted-foreground">
+                                Students will see a countdown timer while attempting.
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
             {/* Add Question Form */}
             <Card>
                 <CardHeader>
@@ -175,6 +250,11 @@ export default function QuizEditor({ module, setModule }) {
                                     onUpdateQuestion={handleUpdateQuestion}
                                     onUpdateOption={handleUpdateOption}
                                     onRemove={() => handleRemoveQuestion(idx)}
+                                    onDragStart={handleDragStart(idx)}
+                                    onDragOver={handleDragOver}
+                                    onDrop={handleDrop(idx)}
+                                    onDragEnd={handleDragEnd}
+                                    isDragging={draggingIndex === idx}
                                 />
                             ))}
                         </div>
@@ -185,7 +265,18 @@ export default function QuizEditor({ module, setModule }) {
     );
 }
 
-function QuestionItem({ question, index, onUpdateQuestion, onUpdateOption, onRemove }) {
+function QuestionItem({
+    question,
+    index,
+    onUpdateQuestion,
+    onUpdateOption,
+    onRemove,
+    onDragStart,
+    onDragOver,
+    onDrop,
+    onDragEnd,
+    isDragging
+}) {
     const [editing, setEditing] = useState(false);
     const [editQuestion, setEditQuestion] = useState(question);
 
@@ -204,11 +295,23 @@ function QuestionItem({ question, index, onUpdateQuestion, onUpdateOption, onRem
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
-            className="border rounded-lg p-4 bg-card"
+            className={`border rounded-lg p-4 bg-card ${isDragging ? 'ring-2 ring-primary/40 bg-primary/5' : ''}`}
+            onDragOver={onDragOver}
+            onDrop={onDrop}
         >
             <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
+                        <button
+                            type="button"
+                            className="h-8 w-8 inline-flex items-center justify-center rounded-md border bg-muted/40 text-muted-foreground hover:bg-muted"
+                            draggable
+                            onDragStart={onDragStart}
+                            onDragEnd={onDragEnd}
+                            aria-label="Drag to reorder question"
+                        >
+                            <GripVertical className="h-4 w-4" />
+                        </button>
                         <span className="font-bold text-primary">Q{index + 1}</span>
                         <span className="text-sm px-2 py-1 bg-primary/10 text-primary rounded-full">
                             {question.points} point{question.points !== 1 ? 's' : ''}
@@ -307,10 +410,11 @@ function QuestionItem({ question, index, onUpdateQuestion, onUpdateOption, onRem
                 <div className="flex gap-2 ml-4">
                     {editing ? (
                         <>
-                            <Button size="sm" variant="outline" onClick={handleSave}>
+                            <Button type="button" size="sm" variant="outline" onClick={handleSave}>
                                 Save
                             </Button>
                             <Button
+                                type="button"
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => {
@@ -324,6 +428,7 @@ function QuestionItem({ question, index, onUpdateQuestion, onUpdateOption, onRem
                     ) : (
                         <>
                             <Button
+                                type="button"
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => setEditing(true)}
@@ -332,6 +437,7 @@ function QuestionItem({ question, index, onUpdateQuestion, onUpdateOption, onRem
                             </Button>
                             <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
                                 <Button
+                                    type="button"
                                     size="sm"
                                     variant="ghost"
                                     className="text-destructive hover:text-destructive/90"

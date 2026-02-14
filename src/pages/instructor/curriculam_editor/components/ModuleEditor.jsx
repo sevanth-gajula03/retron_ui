@@ -75,7 +75,8 @@ export default function ModuleEditor({ isOpen, onClose, moduleData, courseId }) 
         type: "text",
         content: "",
         order: 0,
-        quizData: []
+        quizData: [],
+        time_limit_seconds: null
     });
 
     const [loading, setLoading] = useState(false);
@@ -115,7 +116,8 @@ export default function ModuleEditor({ isOpen, onClose, moduleData, courseId }) 
                 type: "text",
                 content: "",
                 order: 0,
-                quizData: []
+                quizData: [],
+                time_limit_seconds: null
             });
             setVideoUrl("");
             setChatCases([]);
@@ -163,13 +165,7 @@ export default function ModuleEditor({ isOpen, onClose, moduleData, courseId }) 
                         explanation: q.explanation || ""
                     }));
                 } else {
-                    quizData = [{
-                        question: "",
-                        points: 1,
-                        options: ['', '', '', ''],
-                        correctOption: 0,
-                        explanation: ""
-                    }];
+                    quizData = [];
                 }
             }
 
@@ -180,6 +176,10 @@ export default function ModuleEditor({ isOpen, onClose, moduleData, courseId }) 
                 content: extractedModule.content || "",
                 order: extractedModule.order || 0,
                 quizData: quizData,
+                time_limit_seconds:
+                    extractedModule.time_limit_seconds ??
+                    extractedModule.timeLimitSeconds ??
+                    null,
                 section_id: resolvedSectionId,
                 sub_section_id: resolvedSubSectionId
             };
@@ -214,13 +214,8 @@ export default function ModuleEditor({ isOpen, onClose, moduleData, courseId }) 
                 type: moduleType,
                 content: "",
                 order: 0,
-                quizData: moduleType === 'quiz' ? [{
-                    question: "",
-                    points: 1,
-                    options: ['', '', '', ''],
-                    correctOption: 0,
-                    explanation: ""
-                }] : [],
+                quizData: moduleType === 'quiz' ? [] : [],
+                time_limit_seconds: null,
                 section_id: resolvedSectionId,
                 sub_section_id: resolvedSubSectionId
             };
@@ -355,7 +350,8 @@ export default function ModuleEditor({ isOpen, onClose, moduleData, courseId }) 
                 order: module.order || 0,
                 ...(module.type === 'quiz' && {
                     quizData: module.quizData,
-                    quizQuestions: module.quizData // For backward compatibility
+                    quizQuestions: module.quizData, // For backward compatibility
+                    time_limit_seconds: module.time_limit_seconds ?? null
                 }),
                 updatedAt: new Date().toISOString()
             };

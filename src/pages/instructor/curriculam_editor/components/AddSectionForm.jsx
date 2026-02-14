@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Input } from "../../../../components/ui/input";
-import { Plus, Clock, Sparkles } from "lucide-react";
+import { Plus, Clock, Sparkles, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "../../../../components/ui/button";
 import { addSection } from "../../../../services/sectionService";
@@ -113,11 +113,11 @@ export default function AddSectionForm({ courseId, sectionsLength, onSectionAdde
                             onFocus={() => setShowSuggestions(true)}
                             onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                             placeholder="What's the next section about? (e.g., 'Introduction to React Hooks')"
-                            className="pl-10 pr-4 py-6 text-base"
+                            className="pl-10 pr-12 py-6 text-base"
                             disabled={adding}
                             autoComplete="off"
                         />
-                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                        <div className="absolute left-3 inset-y-0 flex items-center">
                             <Plus className="h-5 w-5 text-muted-foreground" />
                         </div>
 
@@ -127,7 +127,7 @@ export default function AddSectionForm({ courseId, sectionsLength, onSectionAdde
                                     initial={{ opacity: 0, scale: 0.8 }}
                                     animate={{ opacity: 1, scale: 1 }}
                                     exit={{ opacity: 0, scale: 0.8 }}
-                                    className="absolute right-3 top-1/2 transform -translate-y-1/2"
+                                    className="absolute right-3 inset-y-0 flex items-center"
                                 >
                                     <Button
                                         type="button"
@@ -135,8 +135,9 @@ export default function AddSectionForm({ courseId, sectionsLength, onSectionAdde
                                         size="sm"
                                         onClick={() => setNewSectionTitle("")}
                                         className="h-8 w-8 p-0"
+                                        aria-label="Clear section title"
                                     >
-                                        ✕
+                                        <X className="h-4 w-4" />
                                     </Button>
                                 </motion.div>
                             )}
@@ -248,25 +249,7 @@ export default function AddSectionForm({ courseId, sectionsLength, onSectionAdde
                         </Button>
                     </motion.div>
 
-                    {sectionsLength > 0 && (
-                        <motion.div
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                        >
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => {
-                                    // Optional: Add multiple sections feature
-                                    console.log("Open bulk add modal");
-                                }}
-                                className="gap-2 py-6"
-                            >
-                                <Clock className="h-4 w-4" />
-                                <span className="hidden sm:inline">Bulk Add</span>
-                            </Button>
-                        </motion.div>
-                    )}
+                    {sectionsLength > 0 && null}
                 </div>
 
                 {/* Stats */}

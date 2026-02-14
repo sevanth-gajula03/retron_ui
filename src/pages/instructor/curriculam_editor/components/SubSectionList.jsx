@@ -36,6 +36,7 @@ export default function SubSectionList({
     onDeleteSubSection,
     onDuplicateSubSection,
     onRefreshSections,
+    onModuleDeleted,
     className = ""
 }) {
     const [expandedSubSections, setExpandedSubSections] = useState({});
@@ -464,31 +465,7 @@ export default function SubSectionList({
         : sortSubSectionsByOrder(subSections || []);
 
     if (!displaySubSections || displaySubSections.length === 0) {
-        return (
-            <Motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className={`text-center py-6 ${className}`}
-            >
-                <div className="inline-flex flex-col items-center p-6 border-2 border-dashed rounded-lg bg-muted/20">
-                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
-                        <Plus className="h-6 w-6 text-primary" />
-                    </div>
-                    <h4 className="font-medium mb-1">No Sub-sections Yet</h4>
-                    <p className="text-sm text-muted-foreground mb-4 max-w-sm">
-                        Create sub-sections to organize content into smaller, manageable parts
-                    </p>
-                    <Button
-                        onClick={handleAddSubSection}
-                        variant="outline"
-                        className="gap-2"
-                    >
-                        <Plus className="h-4 w-4" />
-                        Add First Sub-section
-                    </Button>
-                </div>
-            </Motion.div>
-        );
+        return null;
     }
 
     return (
@@ -929,7 +906,7 @@ function SubSectionItem({
                                         subSectionId={subSection.id}
                                         courseId={courseId}
                                         onEditModule={handleEditModule}
-                                        onDeleteModule={() => onRefreshSections && onRefreshSections()}
+                                        onDeleteModule={onModuleDeleted}
                                     />
                                 </div>
 

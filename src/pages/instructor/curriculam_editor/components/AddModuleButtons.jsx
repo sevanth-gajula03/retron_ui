@@ -1,6 +1,6 @@
 import { Plus, Video, FileText, HelpCircle, Sparkles, Zap, Layout, MoreVertical, MessageCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "../../../../components/ui/button";
 
 export default function AddModuleButtons({
@@ -16,6 +16,26 @@ export default function AddModuleButtons({
 }) {
     const [expanded, setExpanded] = useState(false);
     const [showMoreOptions, setShowMoreOptions] = useState(false);
+    const containerRef = useRef(null);
+
+    useEffect(() => {
+        if (!expanded && !showMoreOptions) return;
+
+        const handleClickOutside = (event) => {
+            if (!containerRef.current) return;
+            if (!containerRef.current.contains(event.target)) {
+                setExpanded(false);
+                setShowMoreOptions(false);
+            }
+        };
+
+        document.addEventListener("mousedown", handleClickOutside);
+        document.addEventListener("touchstart", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+            document.removeEventListener("touchstart", handleClickOutside);
+        };
+    }, [expanded, showMoreOptions]);
 
     const moduleTypes = [
         {
@@ -114,7 +134,7 @@ export default function AddModuleButtons({
 
     if (compact) {
         return (
-            <div className={`flex gap-2 ${className}`}>
+            <div ref={containerRef} className={`flex gap-2 ${className}`}>
                 <motion.div
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
@@ -183,7 +203,7 @@ export default function AddModuleButtons({
     }
 
     return (
-        <div className={`space-y-4 ${className}`}>
+        <div ref={containerRef} className={`space-y-4 ${className}`}>
             {/* Main Add Module Buttons */}
             <div className="flex flex-wrap gap-3">
                 {moduleTypes.map((module) => (
@@ -333,9 +353,28 @@ export default function AddModuleButtons({
 
 function ModuleTypeButton({ module, onAdd, onQuickAdd, showQuickAdd, size, variant }) {
     const [showQuickOptions, setShowQuickOptions] = useState(false);
+    const containerRef = useRef(null);
+
+    useEffect(() => {
+        if (!showQuickOptions) return;
+
+        const handleClickOutside = (event) => {
+            if (!containerRef.current) return;
+            if (!containerRef.current.contains(event.target)) {
+                setShowQuickOptions(false);
+            }
+        };
+
+        document.addEventListener("mousedown", handleClickOutside);
+        document.addEventListener("touchstart", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+            document.removeEventListener("touchstart", handleClickOutside);
+        };
+    }, [showQuickOptions]);
 
     return (
-        <div className="relative group">
+        <div ref={containerRef} className="relative group">
             <motion.div
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
